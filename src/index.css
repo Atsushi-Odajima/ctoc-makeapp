@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-sky-50 text-slate-800;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  overscroll-behavior-y: none;
+}
+
+/* iPhone セーフエリア対応 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
