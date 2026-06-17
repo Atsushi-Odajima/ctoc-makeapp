@@ -1,7 +1,7 @@
 {
   "name": "Feeld",
   "short_name": "Feeld",
-  "description": "昔のSNSの良いとこ取り入れたSNS",
+  "description": "平成SNS",
   "start_url": "/feed",
   "display": "standalone",
   "orientation": "portrait",

@@ -40,7 +40,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-blue-50 to-white" />
         <div className="relative max-w-4xl mx-auto px-5 text-center pt-10">
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-8">
-            昔のSNSの良いとこ取り入れたSNS
+            平成SNS
           </div>
 
           {/* Large logo + name */}
@@ -52,7 +52,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-base text-slate-500 mb-10 max-w-sm mx-auto leading-relaxed">
-            足跡機能や掲示板のある前略SNS
+            足跡・前略・掲示板
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login"
@@ -133,7 +133,7 @@ export default function LandingPage() {
           </div>
           <h2 className="text-4xl font-black text-slate-900 mb-1 tracking-tight">Feeld</h2>
           <p className="text-slate-500 mb-8 leading-relaxed">
-            昔のSNSの良いとこ取り入れたSNS
+            平成SNS
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/login"

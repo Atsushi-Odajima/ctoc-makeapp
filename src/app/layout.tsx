@@ -13,7 +13,7 @@ const notoSansJP = Noto_Sans_JP({
 
 export const metadata: Metadata = {
   title: "Feeld",
-  description: "昔のSNSの良いとこ取り入れたSNS",
+  description: "平成SNS",
   manifest: "/manifest.json",
   icons: {
     icon: [

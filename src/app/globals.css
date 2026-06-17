@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-noto), "Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", sans-serif;
+}
+
 :root {
   --background: #F0F4FF;
   --foreground: #1E293B;
