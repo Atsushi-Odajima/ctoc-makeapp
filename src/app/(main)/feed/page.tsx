@@ -39,7 +39,8 @@ export default function FeedPage() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent">mixta</span>
+          <img src="/logo.svg" alt="Feeld" className="w-7 h-7 object-contain" />
+          <span className="text-xl font-black tracking-tight bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent">Feeld</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/messages">
@@ -59,7 +60,7 @@ export default function FeedPage() {
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-8">
             <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center mb-4">
-              <span className="text-3xl font-black text-blue-200">m</span>
+              <img src="/logo.svg" alt="Feeld" className="w-12 h-12 object-contain opacity-30" />
             </div>
             <h3 className="text-xl font-bold text-slate-700 mb-2">フィードが空です</h3>
             <p className="text-slate-400 mb-6">ユーザーをフォローして投稿を見よう！</p>

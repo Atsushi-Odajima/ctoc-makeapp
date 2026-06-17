@@ -65,8 +65,11 @@ export default function RegisterPage() {
   return (
     <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-blue-900/20 p-8">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent mb-2">
-          mixta
+        <div className="flex justify-center mb-3">
+          <img src="/logo.svg" alt="Feeld" className="w-16 h-16 object-contain" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent mb-1">
+          Feeld
         </h1>
         <p className="text-slate-400 text-sm">新規アカウント登録</p>
       </div>

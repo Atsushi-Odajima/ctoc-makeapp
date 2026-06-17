@@ -2,7 +2,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { Heart, Camera, ChevronRight, Loader2 } from "lucide-react"
+import { Camera, ChevronRight, Loader2 } from "lucide-react"
 import toast from "react-hot-toast"
 
 const DEMO_AVATARS = [
@@ -40,10 +40,10 @@ export default function OnboardingPage() {
       <div className="absolute top-20 right-20 w-72 h-72 bg-blue-400 rounded-full opacity-10 blur-3xl pointer-events-none" />
       <div className="w-full max-w-sm relative z-10">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-            <Heart className="w-4 h-4 text-white fill-white" />
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-lg">
+            <img src="/logo.svg" alt="Feeld" className="w-8 h-8 object-contain" />
           </div>
-          <span className="text-white font-black text-2xl tracking-tight">mixta</span>
+          <span className="text-white font-black text-2xl tracking-tight">Feeld</span>
         </div>
         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6">
           <h2 className="text-2xl font-bold text-slate-800 mb-1">プロフィール設定</h2>

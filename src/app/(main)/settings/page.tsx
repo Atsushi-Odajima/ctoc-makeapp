@@ -89,7 +89,10 @@ export default function SettingsPage() {
           <span className="text-sm font-semibold">ログアウト</span>
         </button>
 
-        <p className="text-center text-slate-400 text-xs pb-4">mixta v1.0.0</p>
+        <div className="flex items-center justify-center gap-1.5 pb-4">
+          <img src="/logo.svg" alt="Feeld" className="w-4 h-4 object-contain opacity-40" />
+          <p className="text-slate-400 text-xs">Feeld v1.0.0</p>
+        </div>
       </div>
     </div>
   )

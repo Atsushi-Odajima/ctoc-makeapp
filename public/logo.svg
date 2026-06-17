@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" fill="none">
+  <!-- Graduation cap top (diamond/square shape) -->
+  <polygon points="100,18 182,62 100,82 18,62" fill="white" stroke="black" stroke-width="7" stroke-linejoin="round"/>
+  <!-- Cap brim / band -->
+  <path d="M18,62 Q18,118 100,118 Q182,118 182,62" fill="white" stroke="black" stroke-width="7"/>
+  <line x1="18" y1="62" x2="18" y2="90" stroke="black" stroke-width="7" stroke-linecap="round"/>
+  <line x1="182" y1="62" x2="182" y2="90" stroke="black" stroke-width="7" stroke-linecap="round"/>
+  <path d="M18,90 Q18,118 100,118 Q182,118 182,90" fill="white" stroke="black" stroke-width="7"/>
+  <!-- Tassel string from top right -->
+  <line x1="148" y1="56" x2="155" y2="100" stroke="black" stroke-width="5" stroke-linecap="round"/>
+  <!-- Tassel end (small rectangle) -->
+  <rect x="149" y="100" width="12" height="18" rx="2" fill="black"/>
+  <!-- Circle at very end -->
+  <circle cx="155" cy="122" r="5" fill="black"/>
+  <!-- "Feeld" text on brim -->
+  <text x="100" y="100" font-family="Georgia, 'Times New Roman', serif" font-size="28" font-weight="bold" text-anchor="middle" fill="black" letter-spacing="2">Feeld</text>
+</svg>

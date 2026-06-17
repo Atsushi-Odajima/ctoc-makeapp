@@ -1,11 +1,11 @@
 {
-  "name": "Connectly",
-  "short_name": "Connectly",
-  "description": "スワイプで素敵な出会いを",
-  "start_url": "/",
+  "name": "Feeld",
+  "short_name": "Feeld",
+  "description": "昔のSNSの良いとこ取り入れたSNS",
+  "start_url": "/feed",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#2563EB",
+  "background_color": "#ffffff",
   "theme_color": "#2563EB",
   "icons": [
     {
@@ -19,6 +19,11 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable any"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ],
   "categories": ["social", "lifestyle"],
