@@ -1,55 +1,31 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Message } from '@/types';
-import { useAppStore } from '@/store';
+import { useState, useCallback, useEffect } from "react"
+import { DirectMessage } from "@/types"
 
-export function useMessages(matchId: string) {
-  const { messages, setMessages, addMessage } = useAppStore();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchMessages = useCallback(async () => {
-    if (!matchId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/messages/${matchId}`);
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      const data: Message[] = await res.json();
-      setMessages(matchId, data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, [matchId, setMessages]);
+export function useMessages(conversationId: string) {
+  const [messages, setMessages] = useState<DirectMessage[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    if (!conversationId) return
+    setLoading(true)
+    fetch(`/api/dm/${conversationId}`)
+      .then(r => r.json())
+      .then(data => setMessages(data.messages || []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [conversationId])
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      try {
-        const res = await fetch(`/api/messages/${matchId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
-        });
-        if (!res.ok) throw new Error('Failed to send message');
-        const data: Message = await res.json();
-        addMessage(matchId, data);
-        return data;
-      } catch (err) {
-        throw err;
-      }
-    },
-    [matchId, addMessage]
-  );
+  const sendMessage = useCallback(async (content: string) => {
+    const res = await fetch(`/api/dm/${conversationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    })
+    if (!res.ok) throw new Error("Failed to send")
+    const msg: DirectMessage = await res.json()
+    setMessages(prev => [...prev, msg])
+    return msg
+  }, [conversationId])
 
-  return {
-    messages: messages[matchId] || [],
-    loading,
-    error,
-    sendMessage,
-    refetch: fetchMessages,
-  };
+  return { messages, loading, sendMessage }
 }

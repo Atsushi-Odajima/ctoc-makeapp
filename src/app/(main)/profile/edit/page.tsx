@@ -1,68 +1,46 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Camera, Loader2, Check, X } from "lucide-react"
-import { parsePhotos } from "@/lib/utils"
-import { cn } from "@/lib/utils"
+import { ChevronLeft, Loader2 } from "lucide-react"
+import { getAvatarUrl } from "@/lib/utils"
+import type { UserProfile } from "@/types"
 import toast from "react-hot-toast"
 
-const INTERESTS = [
-  { name: "音楽", emoji: "🎵" }, { name: "映画", emoji: "🎬" }, { name: "料理", emoji: "🍳" },
-  { name: "旅行", emoji: "✈️" }, { name: "スポーツ", emoji: "⚽" }, { name: "アート", emoji: "🎨" },
-  { name: "読書", emoji: "📚" }, { name: "ゲーム", emoji: "🎮" }, { name: "写真", emoji: "📸" },
-  { name: "ヨガ", emoji: "🧘" }, { name: "ダンス", emoji: "💃" }, { name: "登山", emoji: "🏔️" },
-  { name: "サーフィン", emoji: "🏄" }, { name: "カフェ", emoji: "☕" }, { name: "アニメ", emoji: "🎌" },
-  { name: "キャンプ", emoji: "🏕️" }, { name: "ファッション", emoji: "👗" }, { name: "ペット", emoji: "🐾" },
-  { name: "筋トレ", emoji: "💪" },
+const AVATAR_OPTIONS = [
+  "https://images.unsplash.com/photo-1494790108755-2616b612b977?w=200&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=200&h=200&fit=crop",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop",
 ]
 
 export default function EditProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-
-  const [name, setName] = useState("")
-  const [bio, setBio] = useState("")
-  const [location, setLocation] = useState("")
-  const [photos, setPhotos] = useState<string[]>([])
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([])
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [form, setForm] = useState({ name: "", bio: "", website: "", avatar: "" })
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
 
   useEffect(() => {
-    fetch("/api/profile")
-      .then(res => res.json())
-      .then(data => {
-        setName(data.name || "")
-        setBio(data.bio || "")
-        setLocation(data.location || "")
-        setPhotos(parsePhotos(data.photos))
-        setSelectedInterests(data.interests?.map((i: { name: string }) => i.name) || [])
-      })
-      .finally(() => setLoading(false))
+    fetch("/api/profile").then(r => r.json()).then((p: UserProfile) => {
+      setProfile(p)
+      setForm({ name: p.name || "", bio: p.bio || "", website: p.website || "", avatar: p.avatar || "" })
+    }).catch(() => toast.error("プロフィールの読み込みに失敗しました")).finally(() => setLoading(false))
   }, [])
 
-  function toggleInterest(name: string) {
-    setSelectedInterests(prev =>
-      prev.includes(name) ? prev.filter(i => i !== name) : prev.length < 10 ? [...prev, name] : prev
-    )
-  }
-
-  function addDemoPhoto() {
-    const url = `https://i.pravatar.cc/400?img=${Math.floor(Math.random() * 70) + 1}&t=${Date.now()}`
-    setPhotos(prev => prev.length < 6 ? [...prev, url] : prev)
-  }
-
-  async function handleSave() {
+  const handleSave = async () => {
     setSaving(true)
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, bio, location, photos, interests: selectedInterests }),
+        body: JSON.stringify(form),
       })
-      if (!res.ok) throw new Error("Save failed")
-      toast.success("プロフィールを更新しました")
-      router.push("/profile")
+      if (!res.ok) throw new Error()
+      toast.success("保存しました")
+      router.back()
     } catch {
       toast.error("保存に失敗しました")
     } finally {
@@ -70,136 +48,101 @@ export default function EditProfilePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="h-full flex items-center justify-center">
+      <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
+    </div>
+  )
 
   return (
-    <div className="h-full overflow-y-auto bg-[#f0f4ff]">
+    <div className="h-full flex flex-col bg-white overflow-y-auto">
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center gap-3 border-b border-slate-100 sticky top-0 z-10">
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center"
-        >
-          <ArrowLeft className="w-5 h-5 text-slate-600" />
+      <div className="flex items-center gap-3 px-2 py-3 border-b border-slate-100">
+        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100">
+          <ChevronLeft className="w-5 h-5 text-slate-700" />
         </button>
-        <h1 className="flex-1 text-lg font-bold text-slate-800">プロフィール編集</h1>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold px-4 py-2 rounded-xl flex items-center gap-2 disabled:opacity-60"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          保存
+        <span className="flex-1 text-base font-bold text-slate-900">プロフィールを編集</span>
+        <button onClick={handleSave} disabled={saving}
+          className="text-blue-500 font-semibold text-sm disabled:opacity-50 px-2">
+          {saving ? "保存中..." : "完了"}
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Photos */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <h2 className="font-semibold text-slate-700 mb-3">写真</h2>
-          <div className="grid grid-cols-3 gap-2">
-            {[0, 1, 2, 3, 4, 5].map(slot => (
-              <div key={slot} className="aspect-square rounded-xl overflow-hidden bg-slate-100 relative group">
-                {photos[slot] ? (
-                  <>
-                    <img src={photos[slot]} alt="" className="w-full h-full object-cover" />
-                    <button
-                      onClick={() => setPhotos(prev => prev.filter((_, i) => i !== slot))}
-                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                    {slot === 0 && (
-                      <div className="absolute bottom-1 left-1 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                        メイン
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <button
-                    onClick={addDemoPhoto}
-                    className="w-full h-full flex flex-col items-center justify-center text-slate-300 hover:text-blue-400 transition-colors"
-                  >
-                    <Camera className="w-6 h-6 mb-1" />
-                    <span className="text-xs">追加</span>
+      <div className="flex-1 px-4 py-6 space-y-6">
+        {/* Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <img
+              src={form.avatar ? form.avatar : (profile ? getAvatarUrl({ ...profile, avatar: null }) : "")}
+              alt=""
+              className="w-20 h-20 rounded-full object-cover border-2 border-slate-100"
+            />
+          </div>
+          <button onClick={() => setShowAvatarPicker(v => !v)}
+            className="text-blue-500 font-semibold text-sm">
+            プロフィール写真を変更
+          </button>
+
+          {showAvatarPicker && (
+            <div className="w-full">
+              <p className="text-xs text-slate-500 mb-2 text-center">アバターを選択</p>
+              <div className="grid grid-cols-3 gap-2">
+                {AVATAR_OPTIONS.map((url, i) => (
+                  <button key={i} onClick={() => { setForm(f => ({...f, avatar: url})); setShowAvatarPicker(false) }}
+                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${form.avatar === url ? "border-blue-500" : "border-transparent"}`}>
+                    <img src={url} alt="" className="w-full h-full object-cover" />
                   </button>
-                )}
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+        </div>
+
+        {/* Fields */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">名前</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setForm(f => ({...f, name: e.target.value}))}
+              placeholder="名前"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            />
           </div>
-          <p className="text-xs text-slate-400 mt-2">タップして写真を追加 (最大6枚)</p>
-        </div>
 
-        {/* Name */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">名前</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Bio */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            自己紹介
-            <span className="text-slate-400 font-normal ml-2">{bio.length}/200</span>
-          </label>
-          <textarea
-            value={bio}
-            onChange={e => setBio(e.target.value.slice(0, 200))}
-            rows={4}
-            placeholder="あなたのことを教えてください..."
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
-        </div>
-
-        {/* Location */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">居住地</label>
-          <input
-            type="text"
-            value={location}
-            onChange={e => setLocation(e.target.value)}
-            placeholder="例: 東京都渋谷区"
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Interests */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-700">趣味・興味</h2>
-            <span className="text-sm text-slate-400">{selectedInterests.length}/10</span>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">自己紹介</label>
+            <textarea
+              value={form.bio}
+              onChange={e => setForm(f => ({...f, bio: e.target.value}))}
+              placeholder="自己紹介を入力..."
+              rows={4}
+              maxLength={150}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none"
+            />
+            <p className="text-right text-xs text-slate-400 mt-1">{form.bio.length}/150</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {INTERESTS.map(({ name, emoji }) => (
-              <button
-                key={name}
-                onClick={() => toggleInterest(name)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border-2 transition-all",
-                  selectedInterests.includes(name)
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-slate-200 text-slate-500 hover:border-blue-200"
-                )}
-              >
-                <span>{emoji}</span>
-                {name}
-              </button>
-            ))}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">ウェブサイト</label>
+            <input
+              type="url"
+              value={form.website}
+              onChange={e => setForm(f => ({...f, website: e.target.value}))}
+              placeholder="https://example.com"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">ユーザーネーム</label>
+            <div className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-400 bg-slate-50">
+              @{profile?.username}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">ユーザーネームは変更できません</p>
           </div>
         </div>
-
-        <div className="h-4" />
       </div>
     </div>
   )

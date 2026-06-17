@@ -1,73 +1,94 @@
 export interface UserProfile {
-  id: string;
-  email: string;
-  name: string;
-  birthdate?: string | null;
-  bio?: string | null;
-  gender?: string | null;
-  lookingFor?: string | null;
-  photos: string[];
-  location?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  minAge: number;
-  maxAge: number;
-  maxDistance: number;
-  showMe: boolean;
-  onboardingDone: boolean;
-  lastActive: string;
-  createdAt: string;
-  interests: Interest[];
+  id: string
+  email: string
+  name: string
+  username: string
+  bio?: string | null
+  avatar?: string | null
+  website?: string | null
+  isPrivate: boolean
+  onboardingDone: boolean
+  lastActive: string
+  createdAt: string
+  followersCount?: number
+  followingCount?: number
+  postsCount?: number
+  isFollowing?: boolean
+  isMe?: boolean
 }
 
-export interface Interest {
-  id: string;
-  name: string;
-  emoji?: string | null;
+export interface Post {
+  id: string
+  userId: string
+  caption?: string | null
+  images: string[]
+  location?: string | null
+  createdAt: string
+  updatedAt: string
+  user: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+  likesCount: number
+  commentsCount: number
+  isLiked: boolean
+  isSaved?: boolean
 }
 
-export interface Swipe {
-  id: string;
-  swiperId: string;
-  swipedId: string;
-  direction: 'like' | 'pass' | 'superlike';
-  createdAt: string;
+export interface Comment {
+  id: string
+  postId: string
+  userId: string
+  content: string
+  parentId?: string | null
+  createdAt: string
+  user: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+  replies?: Comment[]
 }
 
-export interface Match {
-  id: string;
-  user1Id: string;
-  user2Id: string;
-  createdAt: string;
-  otherUser?: UserProfile;
-  lastMessage?: Message | null;
-  unreadCount?: number;
+export interface Story {
+  id: string
+  userId: string
+  imageUrl: string
+  caption?: string | null
+  expiresAt: string
+  createdAt: string
+  user: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+  seen?: boolean
 }
 
-export interface Message {
-  id: string;
-  matchId: string;
-  senderId: string;
-  content: string;
-  readAt?: string | null;
-  createdAt: string;
-  sender?: {
-    id: string;
-    name: string;
-    photos: string[];
-  };
+export interface Notification {
+  id: string
+  userId: string
+  type: "like" | "comment" | "follow" | "mention" | "footprint"
+  fromUserId?: string | null
+  postId?: string | null
+  content?: string | null
+  read: boolean
+  createdAt: string
+  fromUser?: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+  post?: { id: string; images: string[] }
 }
 
-export interface SwipeAction {
-  direction: 'like' | 'pass' | 'superlike';
-  userId: string;
+export interface Footprint {
+  id: string
+  visitorId: string
+  visitedId: string
+  visitedAt: string
+  visitor: Pick<UserProfile, "id" | "name" | "username" | "avatar">
 }
 
-export interface DiscoverFilters {
-  minAge: number;
-  maxAge: number;
-  maxDistance: number;
-  gender?: string;
+export interface Conversation {
+  id: string
+  createdAt: string
+  updatedAt: string
+  otherUser: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+  lastMessage?: DirectMessage | null
 }
 
-export type SwipeDirection = 'left' | 'right' | 'up' | null;
+export interface DirectMessage {
+  id: string
+  conversationId: string
+  senderId: string
+  content: string
+  readAt?: string | null
+  createdAt: string
+  sender?: Pick<UserProfile, "id" | "name" | "username" | "avatar">
+}

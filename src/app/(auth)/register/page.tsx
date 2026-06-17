@@ -1,178 +1,102 @@
-'use client';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Heart, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import toast from 'react-hot-toast';
-import { motion } from 'framer-motion';
-
-const schema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ['confirmPassword'],
-});
-
-type FormData = z.infer<typeof schema>;
+"use client"
+import { useState } from "react"
+import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Heart, Mail, Lock, User, AtSign, Eye, EyeOff, Loader2 } from "lucide-react"
+import toast from "react-hot-toast"
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter()
+  const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPw, setShowPw] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  });
+  function suggestUsername(n: string) {
+    if (!username) setUsername(n.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""))
+  }
 
-  const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name || !email || !password) return toast.error("すべての項目を入力してください")
+    if (password.length < 6) return toast.error("パスワードは6文字以上")
+    setLoading(true)
     try {
-      // Register user
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          name: data.name,
-        }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Registration failed');
-      }
-
-      // Auto sign in
-      const signInResult = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (signInResult?.error) {
-        toast.error('Account created but login failed. Please log in.');
-        router.push('/login');
-      } else {
-        toast.success('Account created! Let\'s set up your profile.');
-        router.push('/onboarding');
-        router.refresh();
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Registration failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const res = await fetch("/api/register", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, username, email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) return toast.error(data.error || "登録に失敗しました")
+      const result = await signIn("credentials", { email, password, redirect: false })
+      if (result?.error) { toast.error("自動ログインに失敗しました"); router.push("/login") }
+      else { toast.success("アカウントを作成しました！"); router.push("/onboarding") }
+    } finally { setLoading(false) }
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 flex items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-80 h-80 bg-cyan-300/20 rounded-full blur-3xl" />
+    <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-blue-900/20 p-8">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-300">
+          <Heart className="w-8 h-8 text-white fill-white" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-800">アカウント作成</h1>
+        <p className="text-slate-500 mt-1">無料で始めよう</p>
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <Heart className="w-8 h-8 text-blue-600" fill="currentColor" />
-          </div>
-          <h1 className="text-3xl font-black text-white">Create Account</h1>
-          <p className="text-white/70 mt-1">Join millions finding their match</p>
-        </div>
-
-        {/* Form Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              label="Full Name"
-              type="text"
-              placeholder="Your name"
-              icon={<User className="w-4 h-4" />}
-              error={errors.name?.message}
-              {...register('name')}
-            />
-
-            <Input
-              label="Email"
-              type="email"
-              placeholder="your@email.com"
-              icon={<Mail className="w-4 h-4" />}
-              error={errors.email?.message}
-              {...register('email')}
-            />
-
-            <div className="relative">
-              <Input
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                icon={<Lock className="w-4 h-4" />}
-                error={errors.password?.message}
-                {...register('password')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <Input
-              label="Confirm Password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              icon={<Lock className="w-4 h-4" />}
-              error={errors.confirmPassword?.message}
-              {...register('confirmPassword')}
-            />
-
-            <Button
-              type="submit"
-              size="lg"
-              loading={isLoading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200 mt-2"
-            >
-              Create Account
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-slate-500 text-sm">
-              Already have an account?{' '}
-              <Link href="/login" className="text-blue-600 font-semibold hover:text-blue-700">
-                Sign in
-              </Link>
-            </p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">名前</label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input type="text" value={name} onChange={e => { setName(e.target.value); suggestUsername(e.target.value) }}
+              placeholder="山田 太郎" autoComplete="name" required
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
         </div>
-
-        <p className="text-center text-white/50 text-xs mt-6">
-          By signing up, you agree to our Terms and Privacy Policy
-        </p>
-      </motion.div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">ユーザーネーム</label>
+          <div className="relative">
+            <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              placeholder="yamada_taro" autoComplete="username"
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">メールアドレス</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">パスワード</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="6文字以上" required
+              className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+        <button type="submit" disabled={loading}
+          className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-all shadow-lg shadow-blue-200 disabled:opacity-60 flex items-center justify-center gap-2">
+          {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+          {loading ? "作成中..." : "アカウント作成"}
+        </button>
+      </form>
+      <div className="mt-6 text-center">
+        <p className="text-slate-500">アカウントをお持ちの方は{" "}<Link href="/login" className="text-blue-600 font-semibold">ログイン</Link></p>
+      </div>
+      <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+        <p className="text-xs font-semibold text-blue-600 mb-1">デモアカウント</p>
+        <p className="text-xs text-slate-600">demo@example.com / password123</p>
+      </div>
     </div>
-  );
+  )
 }

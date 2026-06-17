@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,88 +7,149 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
+  id             String   @id @default(cuid())
+  email          String   @unique
   password       String
   name           String
-  birthdate      DateTime?
+  username       String   @unique
   bio            String?
-  gender         String?
-  lookingFor     String?
-  photos         String    @default("[]")
-  location       String?
-  latitude       Float?
-  longitude      Float?
-  minAge         Int?      @default(18)
-  maxAge         Int?      @default(50)
-  maxDistance    Int?      @default(50)
-  showMe         Boolean   @default(true)
-  onboardingDone Boolean   @default(false)
-  lastActive     DateTime  @default(now())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  avatar         String?
+  website        String?
+  isPrivate      Boolean  @default(false)
+  onboardingDone Boolean  @default(false)
+  lastActive     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  interests      UserInterest[]
-  swipedBy       Swipe[]        @relation("SwipedUser")
-  swiped         Swipe[]        @relation("Swiper")
-  matchesAsUser1 Match[]        @relation("MatchUser1")
-  matchesAsUser2 Match[]        @relation("MatchUser2")
-  sentMessages   Message[]
-  accounts       Account[]
-  sessions       Session[]
+  posts                  Post[]
+  comments               Comment[]
+  likes                  Like[]
+  followers              Follow[]                 @relation("Following")
+  following              Follow[]                 @relation("Followers")
+  stories                Story[]
+  notifications          Notification[]
+  footprintsReceived     Footprint[]              @relation("Visited")
+  footprintsMade         Footprint[]              @relation("Visitor")
+  sentMessages           DirectMessage[]
+  conversations          ConversationParticipant[]
+  accounts               Account[]
+  sessions               Session[]
 }
 
-model Interest {
-  id    String         @id @default(cuid())
-  name  String         @unique
-  emoji String?
-  users UserInterest[]
-}
-
-model UserInterest {
-  userId     String
-  interestId String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  interest   Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
-
-  @@id([userId, interestId])
-}
-
-model Swipe {
+model Post {
   id        String   @id @default(cuid())
-  swiperId  String
-  swipedId  String
-  direction String
+  userId    String
+  caption   String?
+  images    String   @default("[]")
+  location  String?
   createdAt DateTime @default(now())
-  swiper    User     @relation("Swiper", fields: [swiperId], references: [id], onDelete: Cascade)
-  swiped    User     @relation("SwipedUser", fields: [swipedId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
 
-  @@unique([swiperId, swipedId])
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes    Like[]
+  comments Comment[]
 }
 
-model Match {
-  id        String    @id @default(cuid())
-  user1Id   String
-  user2Id   String
-  createdAt DateTime  @default(now())
-  user1     User      @relation("MatchUser1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2     User      @relation("MatchUser2", fields: [user2Id], references: [id], onDelete: Cascade)
-  messages  Message[]
+model Like {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
 
-  @@unique([user1Id, user2Id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
 }
 
-model Message {
-  id        String    @id @default(cuid())
-  matchId   String
-  senderId  String
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
   content   String
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  match     Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("Replies", fields: [parentId], references: [id])
+  replies Comment[] @relation("Replies")
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  userId    String
+  imageUrl  String
+  caption   String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Footprint {
+  id        String   @id @default(cuid())
+  visitorId String
+  visitedId String
+  visitedAt DateTime @default(now())
+
+  visitor User @relation("Visitor", fields: [visitorId], references: [id], onDelete: Cascade)
+  visited User @relation("Visited", fields: [visitedId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String
+  fromUserId String?
+  postId     String?
+  content    String?
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     DirectMessage[]
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+}
+
+model DirectMessage {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -107,7 +165,8 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -117,7 +176,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {

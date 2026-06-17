@@ -1,189 +1,140 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { signOut } from "next-auth/react"
-import { Edit3, Settings, LogOut, MapPin, Calendar, Loader2, Heart } from "lucide-react"
-import { calculateAge, parsePhotos } from "@/lib/utils"
-import type { UserProfile } from "@/types"
+import Link from "next/link"
+import { Settings, Grid, Bookmark, Loader2 } from "lucide-react"
+import { getAvatarUrl, formatCount, parseImages } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+import type { UserProfile, Post } from "@/types"
 
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
-  const [photoIndex, setPhotoIndex] = useState(0)
+  const [tab, setTab] = useState<"posts" | "saved">("posts")
 
   useEffect(() => {
-    fetch("/api/profile")
-      .then(res => res.json())
-      .then(data => setProfile(data))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    Promise.all([
+      fetch("/api/profile").then(r => r.json()),
+      fetch("/api/posts?mine=true").then(r => r.json()),
+    ]).then(([p, posts]) => {
+      setProfile(p)
+      setPosts(Array.isArray(posts) ? posts : [])
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-      </div>
-    )
-  }
-
+  if (loading) return (
+    <div className="h-full flex items-center justify-center">
+      <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
+    </div>
+  )
   if (!profile) return null
 
-  const photos = parsePhotos(profile.photos)
-  const age = profile.birthdate ? calculateAge(profile.birthdate) : null
-
   return (
-    <div className="h-full overflow-y-auto bg-[#f0f4ff]">
+    <div className="h-full flex flex-col bg-white overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 bg-[#f0f4ff]">
-        <h1 className="text-2xl font-bold text-slate-800">プロフィール</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => router.push("/profile/edit")}
-            className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center hover:shadow-md transition-shadow"
-          >
-            <Edit3 className="w-5 h-5 text-blue-600" />
-          </button>
-          <button
-            onClick={() => router.push("/settings")}
-            className="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center hover:shadow-md transition-shadow"
-          >
-            <Settings className="w-5 h-5 text-slate-500" />
-          </button>
-        </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <span className="text-lg font-bold text-slate-900">{profile.username}</span>
+        <Link href="/settings">
+          <Settings className="w-6 h-6 text-slate-800" strokeWidth={1.8} />
+        </Link>
       </div>
 
-      {/* Main Profile Card */}
-      <div className="mx-4 mb-4 bg-white rounded-3xl overflow-hidden shadow-sm">
-        {/* Photos */}
-        <div className="relative aspect-[4/5]">
-          {photos.length > 0 ? (
-            <img
-              src={photos[photoIndex]}
-              alt={profile.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-6xl mb-3">📸</div>
-                <p className="text-slate-400 text-sm">写真を追加</p>
+      {/* Profile info */}
+      <div className="px-4 pt-5 pb-4">
+        <div className="flex items-center gap-6 mb-4">
+          <img
+            src={getAvatarUrl(profile)}
+            alt={profile.name}
+            className="w-20 h-20 rounded-full object-cover border-2 border-slate-100"
+          />
+          <div className="flex-1 flex justify-around">
+            {[
+              { label: "投稿", value: profile.postsCount ?? posts.length },
+              { label: "フォロワー", value: profile.followersCount ?? 0 },
+              { label: "フォロー中", value: profile.followingCount ?? 0 },
+            ].map(({ label, value }) => (
+              <div key={label} className="text-center">
+                <p className="text-lg font-bold text-slate-900">{formatCount(value)}</p>
+                <p className="text-xs text-slate-500">{label}</p>
               </div>
-            </div>
-          )}
-
-          {/* Photo dots */}
-          {photos.length > 1 && (
-            <div className="absolute top-3 left-0 right-0 flex justify-center gap-1.5 px-4">
-              {photos.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPhotoIndex(i)}
-                  className={cn(
-                    "flex-1 h-1 rounded-full max-w-12 transition-all",
-                    i === photoIndex ? "bg-white" : "bg-white/40"
-                  )}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-4 right-4">
-            <h2 className="text-white font-bold text-3xl">
-              {profile.name}{age ? `, ${age}` : ""}
-            </h2>
-            {profile.location && (
-              <div className="flex items-center gap-1 text-white/80 mt-1">
-                <MapPin className="w-4 h-4" />
-                <span className="text-sm">{profile.location}</span>
-              </div>
-            )}
+            ))}
           </div>
         </div>
 
-        {/* Info */}
-        <div className="p-5 space-y-4">
-          {profile.bio && (
-            <div>
-              <p className="text-slate-600 leading-relaxed">{profile.bio}</p>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-2">
-            {profile.birthdate && (
-              <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium">
-                <Calendar className="w-4 h-4" />
-                {age}歳
-              </div>
-            )}
-            {profile.gender && (
-              <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium">
-                {profile.gender === "male" ? "👨 男性" : profile.gender === "female" ? "👩 女性" : "🌈 その他"}
-              </div>
-            )}
-          </div>
-
-          {profile.interests && profile.interests.length > 0 && (
-            <div>
-              <p className="text-slate-500 text-sm font-medium mb-2">趣味・興味</p>
-              <div className="flex flex-wrap gap-2">
-                {profile.interests.map(interest => (
-                  <span
-                    key={interest.id}
-                    className="flex items-center gap-1 bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full text-sm"
-                  >
-                    {interest.emoji || ""}
-                    {interest.name}
-                  </span>
-                ))}
-              </div>
-            </div>
+        <div className="mb-4">
+          <p className="font-semibold text-slate-900 text-sm">{profile.name}</p>
+          {profile.bio && <p className="text-sm text-slate-700 leading-snug mt-0.5 whitespace-pre-line">{profile.bio}</p>}
+          {profile.website && (
+            <a href={profile.website} target="_blank" rel="noopener noreferrer"
+              className="text-sm text-blue-600 font-medium mt-0.5 block">
+              {profile.website.replace(/^https?:\/\//, "")}
+            </a>
           )}
         </div>
-      </div>
 
-      {/* Edit Profile Button */}
-      <div className="mx-4 mb-4">
-        <button
-          onClick={() => router.push("/profile/edit")}
-          className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold py-4 rounded-2xl shadow-lg shadow-blue-200 hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-        >
-          <Edit3 className="w-5 h-5" />
+        <Link href="/profile/edit"
+          className="block w-full border border-slate-300 text-slate-800 text-sm font-semibold py-2 rounded-lg text-center hover:bg-slate-50 transition-colors">
           プロフィールを編集
+        </Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-t border-slate-100">
+        <button onClick={() => setTab("posts")}
+          className={cn("flex-1 py-3 flex justify-center border-t-2 transition-colors",
+            tab === "posts" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400")}>
+          <Grid className="w-5 h-5" />
+        </button>
+        <button onClick={() => setTab("saved")}
+          className={cn("flex-1 py-3 flex justify-center border-t-2 transition-colors",
+            tab === "saved" ? "border-slate-900 text-slate-900" : "border-transparent text-slate-400")}>
+          <Bookmark className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="mx-4 mb-4 bg-white rounded-2xl p-4 shadow-sm">
-        <h3 className="font-semibold text-slate-700 mb-3">アクティビティ</h3>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          {[
-            { icon: Heart, label: "マッチング", value: "—" },
-            { icon: Heart, label: "いいね", value: "—" },
-            { icon: Heart, label: "訪問者", value: "—" },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label}>
-              <p className="text-2xl font-bold text-blue-600">{value}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+      {/* Posts grid */}
+      {tab === "posts" && (
+        posts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-full border-2 border-slate-300 flex items-center justify-center mb-3">
+              <Grid className="w-8 h-8 text-slate-300" />
             </div>
-          ))}
-        </div>
-      </div>
+            <p className="font-bold text-slate-800 mb-1">投稿をシェアする</p>
+            <p className="text-sm text-slate-500">写真や動画を投稿すると<br />ここに表示されます</p>
+            <Link href="/create" className="mt-4 text-blue-500 font-semibold text-sm">最初の投稿をする</Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-0.5">
+            {posts.map(post => {
+              const imgs = post.images || []
+              return (
+                <button key={post.id} onClick={() => router.push(`/post/${post.id}`)}
+                  className="aspect-square bg-slate-100 overflow-hidden relative">
+                  {imgs[0]
+                    ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full bg-gradient-to-br from-blue-100 to-cyan-100" />}
+                  {imgs.length > 1 && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <div className="w-4 h-4 bg-black/40 rounded-sm flex items-center justify-center">
+                        <span className="text-white text-[8px] font-bold">+</span>
+                      </div>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )
+      )}
 
-      {/* Sign out */}
-      <div className="mx-4 mb-8">
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="w-full flex items-center justify-center gap-2 py-3.5 text-red-400 font-medium rounded-2xl border border-red-100 hover:bg-red-50 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          ログアウト
-        </button>
-      </div>
+      {tab === "saved" && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Bookmark className="w-10 h-10 text-slate-300 mb-3" />
+          <p className="text-slate-500 text-sm">保存した投稿はここに表示されます</p>
+        </div>
+      )}
     </div>
   )
 }

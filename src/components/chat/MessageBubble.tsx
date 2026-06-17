@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils';
-import { Message } from '@/types';
+import { DirectMessage } from '@/types';
 import { formatMessageTime } from '@/lib/utils';
 import { Check, CheckCheck } from 'lucide-react';
 
 interface MessageBubbleProps {
-  message: Message;
+  message: DirectMessage;
   isOwn: boolean;
 }
 
