@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { Heart, MessageCircle, Loader2 } from "lucide-react"
+import { MessageCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { PostCard } from "@/components/feed/PostCard"
@@ -39,10 +39,7 @@ export default function FeedPage() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center">
-            <Heart className="w-3.5 h-3.5 text-white fill-white" />
-          </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent" style={{fontFamily:"'Georgia',serif"}}>Connectly</span>
+          <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-700 to-cyan-500 bg-clip-text text-transparent">mixta</span>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/messages">
@@ -62,7 +59,7 @@ export default function FeedPage() {
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-8">
             <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center mb-4">
-              <Heart className="w-10 h-10 text-blue-200" />
+              <span className="text-3xl font-black text-blue-200">m</span>
             </div>
             <h3 className="text-xl font-bold text-slate-700 mb-2">フィードが空です</h3>
             <p className="text-slate-400 mb-6">ユーザーをフォローして投稿を見よう！</p>

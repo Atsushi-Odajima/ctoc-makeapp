@@ -43,7 +43,7 @@ export default function OnboardingPage() {
           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
             <Heart className="w-4 h-4 text-white fill-white" />
           </div>
-          <span className="text-white font-bold text-xl">Connectly</span>
+          <span className="text-white font-black text-2xl tracking-tight">mixta</span>
         </div>
         <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6">
           <h2 className="text-2xl font-bold text-slate-800 mb-1">プロフィール設定</h2>

@@ -89,7 +89,7 @@ export default function SettingsPage() {
           <span className="text-sm font-semibold">ログアウト</span>
         </button>
 
-        <p className="text-center text-slate-400 text-xs pb-4">Connectly v1.0.0</p>
+        <p className="text-center text-slate-400 text-xs pb-4">mixta v1.0.0</p>
       </div>
     </div>
   )
