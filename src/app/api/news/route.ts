@@ -92,7 +92,7 @@ function normalizeItem(item: RssItem, feed: (typeof FEEDS)[number], rank: number
 async function fetchItems() {
   const results = await Promise.allSettled(FEEDS.map(async feed => {
     const response = await fetch(feed.url, {
-      headers: { "User-Agent": "HarenowaNewsPortal/2.0" },
+      headers: { "User-Agent": "DayNetNews/1.0" },
       next: { revalidate: 300 },
     })
     if (!response.ok) throw new Error(`RSS fetch failed: ${feed.key}`)

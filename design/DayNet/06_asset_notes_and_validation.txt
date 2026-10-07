@@ -1,0 +1,64 @@
+DayNet v4 / 素材・検証記録
+2026-10-07
+
+制作範囲
+本納品は、既存SNSの名称・ブランド・UI改修案とClaude Code向け実装指示。
+アプリのソースを変更・デプロイした納品ではない。
+ブランドボードとUIの日本語はHTML/CSSで組版し、実フォントで画像へ描画。
+ロゴの幾何学記号はSVGパス、英字DayNetはOutfit600のアウトライン。
+SVGを正本とし、PNGは表示・配布用。文字とマークは別要素。
+
+収録素材
+brand_board.png 1800×1400、ui_overview.png 1800×1160。
+logo_preview.png 1400×440、logo_directions.png 1500×800。
+ui_feed/profile/communities/create/messages.pngは各780×1688。
+PWAアイコン192/512、Apple Touch180、favicon32。
+横ロゴ、記号、単色、濃色背景版はSVG/PNGを収録。
+単色マークは交差部分に透明な切り欠きを設け、重なりを保つ。
+
+フォント
+Outfit（欧文・数字）とBIZ UDPGothic（和文）を同梱。
+配布元：Google Fontsのgoogle/fonts公式リポジトリ。
+Outfit：https://github.com/google/fonts/tree/main/ofl/outfit
+BIZ UDPGothic：https://github.com/google/fonts/tree/main/ofl/bizudpgothic
+licenses内のOFL全文を付属。フォントを再配布する場合もライセンスを添える。
+Outfit-Semibold.ttfは同梱可変フォントから600をインスタンス化した見本制作用ファイル。
+プロダクト配信は可変フォントまたは必要なウェイトを使う。
+
+写真
+assets/demo_walk.pngは今回生成した架空の花屋の写真。実ユーザーの投稿ではない。
+人物・顔・看板・ブランド・透かしを含めない条件で生成。
+デモ画像を本番の実ユーザー投稿や利用者実績として使わない。
+生成プロンプト：
+Use case: photorealistic-natural. Asset type: a fictional photo post inside an approachable photo-sharing social app called DayNet. Create a natural smartphone photograph, landscape 4:3 composition: a small quiet Tokyo neighborhood flower-shop corner on a pleasant bright autumn afternoon. The view is close to buckets of modest coral-orange cosmos and pale lilac asters along a lightly weathered pale concrete step; a small faded forest-green shop door partly visible at far right, soft daylight, casual slightly imperfect handheld framing. Main flowers on left and center, enough environment to feel like something spotted on a walk, realistic petals, stems, silver buckets, mundane urban pavement. Editorial candid photography, NOT a glossy flower commercial. No people, no faces, no silhouettes, no brands, no words, no signs, no watermarks. Muted natural palette, detailed and believable, no artificial bokeh and no excessive HDR.
+
+表示・操作の確認
+HTML見本の5画面×4幅（320/390/768/1440px）、計20ケースで横にはみ出さないことを確認。
+各画面のハッシュ遷移、DayNetロゴの代替文、必須プロフィール3項目を確認。
+リアクションの見本切替、JavaScript例外なしを確認。
+examples/preview_validation.jsonに結果を収録。
+見本の投稿・DM・検索・保存・ログインは実機能ではない。送信・保存しない旨を操作時に表示する。
+実iPhoneでの操作、元アプリのビルド、API・DB・セキュリティテストは未実施。
+本実装でのテスト・Acceptance Criteriaは01の指示に従う。
+この表示確認をアプリ全体の合格やWCAG全項目の適合と読み替えない。
+
+配色の検算（sRGB比率）
+ink/canvas: 12.57:1
+muted/canvas: 5.61:1
+ink/accent: 5.07:1
+ink/lilac: 10.36:1
+muted/lilac: 4.62:1
+canvas/ink: 12.57:1
+focus/canvas: 5.65:1
+controlBorder/surface: 3.81:1
+通常本文の指定ペアは4.5:1以上。フォーカス線と操作枠は指定背景で3:1以上。
+白地にコーラルの小さい本文を置かない。コーラル面上の文字はinkを使う。
+
+納品前の確認
+画面・SVG・デザイントークンの現行名称をDayNetへ統一。
+DotNet等の旧名称は比較・移行履歴の説明にのみ残す。
+ロゴの文字欠け、ブランドボードの文字化け、画面画像の取り違えを目視確認。
+UTF-8、必須ファイル、PNG寸法、ローカル素材参照を機械確認。
+ZIPは内容の整合性を検査。画像とTXTを含み、元ソースZIP・DB・秘密情報は含めない。
+DayNetの商標は未確認。名称調査の限界は02を参照。
+Astra_master_prompt_v4.txtの原本は参照できていない。会話内基準と参照済み資料を適用。

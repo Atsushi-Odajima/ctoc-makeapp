@@ -1,42 +1,22 @@
-import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { z } from "zod"
+import { ok, parseQuery, route } from "@/lib/api/http"
+import { getViewer } from "@/lib/api/viewer"
+import { pageSize } from "@/lib/api/pagination"
+import { countNewer, listFeed } from "@/lib/services/posts"
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const uid = session.user.id
+const query = z.object({
+  tab: z.enum(["following", "communities", "discover"]).optional().default("following"),
+  cursor: z.string().max(200).optional(),
+  limit: z.string().optional(),
+  since: z.string().max(200).optional(),
+})
 
-  const following = await prisma.follow.findMany({ where: { followerId: uid }, select: { followingId: true } })
-  const followingIds = following.map(f => f.followingId)
-  const memberships = await prisma.communityMember.findMany({ where: { userId: uid }, select: { communityId: true } })
-  const communityIds = memberships.map(membership => membership.communityId)
-
-  const posts = await prisma.post.findMany({
-    where: {
-      OR: [
-        { userId: { in: [...followingIds, uid] } },
-        { communityId: { in: communityIds } },
-      ],
-    },
-    include: {
-      user: { select: { id: true, name: true, username: true, avatar: true } },
-      newsArticle: { select: { id: true, title: true, link: true, source: true, category: true, publishedAt: true } },
-      community: { select: { id: true, slug: true, name: true } },
-      _count: { select: { likes: true, comments: true } },
-      likes: { where: { userId: uid }, select: { userId: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-  })
-
-  return NextResponse.json(posts.map(p => ({
-    ...p,
-    images: (() => { try { return JSON.parse(p.images) } catch { return [] } })(),
-    likesCount: p._count.likes,
-    commentsCount: p._count.comments,
-    isLiked: p.likes.length > 0,
-    likes: undefined,
-    _count: undefined,
-  })))
-}
+// Chronological only (publishedAt desc, id desc). No ranking / synthetic popularity.
+export const GET = route(async (request: Request) => {
+  const q = parseQuery(request.url, query)
+  const viewer = await getViewer()
+  const tab = viewer ? q.tab : "discover"
+  if (q.since) return ok({ newCount: await countNewer(viewer?.id ?? null, tab, q.since) })
+  const page = await listFeed(viewer?.id ?? null, tab, { cursor: q.cursor, limit: pageSize(q.limit) })
+  return ok(page.items, { nextCursor: page.nextCursor })
+})

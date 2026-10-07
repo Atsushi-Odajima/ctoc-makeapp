@@ -1,36 +1,22 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { getViewer, requireCompleteProfile } from "@/lib/api/viewer"
+import { commentSchema } from "@/lib/validation/schemas"
+import { addComment, listComments } from "@/lib/services/comments"
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: postId } = await params
-  const comments = await prisma.comment.findMany({
-    where: { postId, parentId: null },
-    include: { user: { select: { id: true, name: true, username: true, avatar: true } }, replies: { include: { user: { select: { id: true, name: true, username: true, avatar: true } } } } },
-    orderBy: { createdAt: "asc" },
-  })
-  return NextResponse.json(comments)
-}
+type Ctx = { params: Promise<{ id: string }> }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id: postId } = await params
-  const { content, parentId } = await req.json()
-  if (!content?.trim()) return NextResponse.json({ error: "Content required" }, { status: 400 })
-  const comment = await prisma.comment.create({
-    data: { postId, userId: session.user.id, content: content.trim(), parentId },
-    include: { user: { select: { id: true, name: true, username: true, avatar: true } } },
-  })
-  const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } })
-  if (post && post.userId !== session.user.id) {
-    try { await prisma.notification.create({ data: { userId: post.userId, type: "comment", fromUserId: session.user.id, postId, content } }) } catch { /* skip */ }
-  }
-  return NextResponse.json(comment)
-}
+export const GET = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await getViewer()
+  return ok(await listComments(viewer?.id ?? null, id))
+})
+
+export const POST = route(async (request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await requireCompleteProfile()
+  const input = await parseBody(request, commentSchema)
+  const commentId = await addComment(viewer, id, input)
+  const comments = await listComments(viewer.id, id)
+  const created = comments.flatMap(c => [c, ...c.replies]).find(c => c.id === commentId)
+  return ok(created, { status: 201 })
+})

@@ -1,0 +1,430 @@
+あなたは既存Next.js SNSの改修担当です。以下を読んで、ctoc-makeappをDayNetへ改修してください。
+新規の静的モックだけを作って終了せず、既存ユーザーとデータを維持しながら機能を実装・検証してください。
+このTXT単体で作業の目的と仕様を読める構成です。正確なブランド素材は同梱assetsを参照してください。
+仕様書の作成時点ではアプリ本体は未変更です。添付HTMLを完成済みアプリと扱わないでください。
+
+[0] 作業前の確認
+・元リポジトリのAGENTS.md/CLAUDE.mdを読み、node_modules/next/dist/docs/の関連ガイドを確認する。
+・Git作業状況、package-lock、実DBの種類・データ件数・環境を確認し、既存変更を上書きしない。
+・参照ZIP時点はNext16.2.9、React19.2.4、Prisma6.19.3、SQLite、NextAuth5beta、Cloudinary、Tailwind4。
+・依存を理由なく全更新しない。インストール後のロックを正本とし、更新理由を記録する。
+・開発はfeature/daynet-v4等の分離ブランチ。既存ID/URL/認証連携を維持する。
+・資料のルートをdesign/DayNet/へ配置する。以下のassets相対パスはすべてdesign/DayNet/assets/として扱う。
+・名称はDayNet。商品番号R05は制作資料用でアプリ画面には出さない。
+
+今回の名称・デザイン改訂はv4。旧d字マークや黄土色のUIを正本として再利用しない。
+既存ソース未実装の機能がある場合、資料だけ更新して実装済みと報告しない。
+
+[1] 目標
+日常の写真・短い動画・日記、趣味コミュニティ、フォロー、反応、DMを中心にする。
+主語はSNS。CinemiXの広告LPや動画編集アプリへ変えない。
+匿名表示名を許可。認証済みアカウントによる投稿とし、匿名で責任追跡不能という意味にしない。
+プロフィール先頭に「イキリポイント」1つ「残念な弱点」1つ「趣味3つ」を必ず置く。
+普段の写真→投稿→同じ趣味の人から返信→次回も投稿する流れを最優先。
+
+[2] 今版の実装対象
+既存のログイン・OAuth、フォロー、写真投稿、コメント、コミュニティ、DMを維持・改善。
+名称・ロゴ・meta・PWAアイコン、5項目ナビ、時系列タブ、必須プロフィール、日記。
+写真5枚または動画1本、キャプション、公開範囲、投稿編集・削除・下書き。
+永続化されたいいね／気持ちわかる、保存、共有、通知。
+非公開アカウント承認、コミュニティ参加申請、ブロック・ミュート・通報、最小の運営画面。
+iPhone Safari/PWAとPC、Vercel配信、本番永続DB移行、ACL対応メディア配信。
+CinemiXの系列説明と将来用の境界だけを用意。
+
+対象外
+AI投稿生成・AI動画編集、ライブ配信、アルゴリズムランキング、動画テンプレート販売、課金・広告SDK。
+CinemiXとの共通ログイン・アカウント照合・自動投稿・データ送信。
+完全E2E暗号化DM、グループDM、音声通話、プッシュ通知、オフライン投稿送信、ネイティブiOS。
+新しいStory機能の拡張は対象外。既存Storyの閲覧・期限処理・既存データは壊さない。
+
+[3] 最初に直す既存コードの問題
+api/dm/[id]/route.ts POSTに参加者確認を追加。ブロックと会話状態も必須。
+api/users/[username]/route.tsを公開DTOへ変更。email、password、OAuthトークン、内部フラグは返さない。
+すべての投稿取得API、media、コメント、通知からの遷移に同じACLを適用。
+PostCard.tsxの計算で作る足あとを削除。保存・簡易反応のuseStateだけの実装をDBへ。
+api/dm/route.tsのparticipants.everyだけによる会話探索をpairKey一意制約へ。
+onboardingDoneをprofile PATCHで任意変更できないようにする。
+vercel-buildからprisma db pushを除き、prisma generate && next buildに変更する。
+api/homeの静止画像Reels表示をやめる。動画再生ボタンは実video媒体だけに出す。
+
+[4] データモデルと移行
+Prismaを継続。本番・結合テストはPostgreSQL。Neonを第一構成としDATABASE_URL（接続プール）、DIRECT_URL（migration）を分ける。
+SQLiteをVercel本番で利用しない。既存SQLiteがある場合、切替前に整合したバックアップを取る。
+SQLiteで作ったmigrationをPostgresへそのまま流さない。Postgres用初期migrationとコピー手順を別に作る。
+DBが空なら新DBにmigrationを適用。既存ならリハーサル→保守時間→最終コピー→件数/外部キー比較→切替。
+既存データが既に別本番DBなら、その実体を優先し無断で新DBに置換しない。
+このときのみ移行計画を実データに合わせて文書化し、破壊的操作前に具体的差分を提示する。
+
+既存モデル維持：User/Post/Comment/Like/Follow/Community/CommunityMember/Conversation/ConversationParticipant/DirectMessage/Notification/Story/Footprint/News関連/Account/Session。
+追加・変更案（型、制約を必ず実装）：
+User：strengthOptionId nullable FK、weaknessOptionId nullable FK、profileVersion Int default0、footprintOptIn Boolean defaultfalse、role USER|MODERATOR|ADMIN、dmPolicy MUTUAL_OR_REQUEST|CLOSED。
+ProfileOption：id stable string、kind STRENGTH|WEAKNESS|HOBBY、label、sortOrder、active Boolean。unique(kind,label)。
+UserHobby：userId、optionId、position 0..2。複合主キーuserId+optionId、unique(userId,position)。
+更新はtransaction内で3件を一括入替。HOBBY種別・重複・件数をサーバーで検証。
+Post：kind NOTE|PHOTO|VIDEO、visibility PUBLIC|FOLLOWERS|COMMUNITY、status DRAFT|PROCESSING|PUBLISHED|FAILED|DELETED、publishedAt、deletedAt、revision Int。
+communityIdがある場合visibility=COMMUNITYのみ。個人投稿にCOMMUNITYは禁止。
+Post.imagesは移行完了まで残す。移行期間は旧画像からMediaをバックフィル。元URLは内部のみ保管。
+Media：id、ownerId、postId nullable、sortOrder、kind IMAGE|VIDEO、providerAssetId、resourceType、version、width、height、durationMs、bytes、format、altText、status PENDING|PROCESSING|READY|FAILED|DELETING、errorCode、createdAt。
+Providerの秘密・恒久的な公開URLを一般DTOに含めない。
+UploadSession：id、ownerId、mediaId、expiresAt、state、expectedKind、maxBytes、providerPublicId unique。
+Bookmark：userId+postId複合主キー、createdAt。本人だけ読める。
+Empathy：userId+postId複合主キー、createdAt。既存Likeはそのまま残し、LIKEとEMPATHYは別々にON/OFF可。
+Follow：status PENDING|ACCEPTEDを追加。既存FollowはACCEPTEDとして維持、非公開変更で既存承認済みフォロワーを消さない。
+CommunityMember：status PENDING|ACTIVE、role OWNER|MODERATOR|MEMBER。既存role値を明示マッピング。
+Block：blockerId+blockedId複合主キー。自分自身のブロック禁止。
+Mute：userId+targetUserId、CommunityMute：userId+communityId。本人にのみ見せる。
+Report：id、reporterId、targetType POST|COMMENT|USER|MESSAGE、targetId、reasonCode、detail<=1000、state OPEN|REVIEWING|RESOLVED、createdAt。
+ModerationAction：actorId、targetType、targetId、action、reason、createdAt。不変の監査記録。
+Conversation：pairKey unique（2つのuserIdをソートして区切り文字で結合）、state REQUESTED|ACCEPTED|DECLINED、initiatorId。
+DirectMessage：clientMessageId。unique(senderId,clientMessageId)、deletedAt nullable。
+APIは同じclientMessageIdの再送時に同じ結果を返す。異なる内容で再使用は409。
+Footprint：相互同意時のみ保存、閲覧者＋対象＋UTC日単位で重複抑止、保管30日。
+公的な投稿閲覧カウンターは作らない。Footprintはプロフィール訪問の同意機能であり、投稿PVではない。
+IdempotencyKey：userId+scope+key、requestHash、resultId、expiresAt（24h）。投稿重複防止に使用。
+
+索引：Post(publishedAt,id)、Post(userId,publishedAt,id)、Post(communityId,publishedAt,id)、Media(postId,sortOrder)、Notification(userId,read,createdAt,id)、DirectMessage(conversationId,createdAt,id)。
+UTC保存、表示はIntl.DateTimeFormatで利用者のlocale/timezone。DB日時を端末時計から信用しない。
+
+[5] プロフィール選択肢の初期値
+イキリポイント：喫茶店の引き出しが多い／道を覚えるのが得意／写真の一枚にこだわる／料理はわりと得意／好きなことには詳しい／話を聞くのが得意。
+残念な弱点：朝にめっぽう弱い／つい寄り道する／片づけは後回し／方向音痴ぎみ／名前を覚えるのが苦手／おやつに弱い。
+趣味：喫茶店／散歩／写真／映画／音楽／読書／料理／旅行／ゲーム／スポーツ／ものづくり／植物／アウトドア／アニメ／ペット／ファッション／乗りもの／その他。
+3つは異なるoptionId。初期選択なし。医療・差別・性的な自己開示を強いる選択肢を加えない。
+強みと弱点は各1個。ユーザーの依頼による必須項目なので任意項目へ変えない。
+3項目はプロフィールの公開情報と明示する。非公開アカウントでも表示名・bio・3項目は公開、投稿は限定と説明。
+旧アカウントにランダムな選択値を補填しない。profileVersion=0のまま本人の選択を待つ。
+閲覧と自分の既存データ取得は可、新しい投稿・コメント・DM開始はPROFILE_REQUIREDを返す。
+
+[6] API契約
+通常応答 {data, nextCursor?}。エラー {error:{code,message,fieldErrors?,retryAfter?}}。
+401未認証、404非存在/非閲覧、403操作不可、409競合、413過大、422入力、429制限、503外部処理不可。
+一覧pageSize20、上限50、createdAt/id複合カーソル。nextCursor不正は422。
+DTO：PublicUser={id,username,name,avatarMedia?,bio,website,strength,weakness,hobbies,isPrivate,viewerRelationship,counts}。
+countsは閲覧許可範囲のみ計算。公開に出す自分の集まりは本人指定の公開コミュニティだけ。
+MediaDTO={id,kind,width,height,durationMs,altText,deliveryUrl,expiresAt,posterUrl?}。
+以下は既存APIを統合・拡張。旧呼出側も同時更新し、外部利用があれば互換routeを設ける。
+GET /api/profile、PATCH /api/profile（任意内部フラグを受け取らずZodで許可項目だけ）
+GET /api/profile/options、PUT /api/profile/introduction（3項目をtransactionで置換しprofileVersion更新）
+GET /api/feed?tab=following|communities|discover&cursor=...
+GET/POST /api/posts、GET/PATCH/DELETE /api/posts/[id]
+PATCH投稿はowner+revision照合。本文とalt編集のみ。公開範囲の拡張は確認済フラグと再ACL検証。
+PUT/DELETE /api/posts/[id]/like、PUT/DELETE /api/posts/[id]/empathy、PUT/DELETE /api/posts/[id]/bookmark
+既存POST /likeのtoggleを置換して冪等にする。既存クライアントがあれば期間限定互換API。
+GET /api/bookmarks（本人）、GET/POST /api/posts/[id]/comments、DELETE /api/comments/[id]
+PUT/DELETE /api/follow/[id]、POST /api/follow-requests/[id]/accept|decline
+GET/POST /api/communities、GET/PATCH /api/communities/[slug]
+POST/DELETE /api/communities/[slug]/join、POST /api/communities/[slug]/requests/[userId]/accept|decline
+GET/POST /api/communities/[slug]/posts（投稿処理は共通サービスへ委譲）
+GET/POST /api/dm、GET/POST /api/dm/[id]、POST /api/dm/[id]/accept|decline、POST /api/dm/[id]/read
+GET /api/notifications、POST /api/notifications/read（自分のID集合だけ）
+PUT/DELETE /api/blocks/[id]、PUT/DELETE /api/mutes/[id]、POST /api/reports
+GET /api/moderation/reports、POST /api/moderation/actions（役割検証）
+POST /api/media/sign、POST /api/media/complete、POST /api/media/webhook、GET /api/media/[id]/delivery
+POST /api/footprints（双方同意、GETに副作用を置かない）、GET /api/footprints（自分への記録のみ）
+POST /api/account/export、DELETE /api/account（再認証と確認）
+
+[7] 認証・権限の正本
+サーバー側にcanViewPost / canManagePost / canMessage / canViewCommunity / publicUserSelectを集約。
+対象の一覧SQLにも権限条件を先にかけてからページング。取得後filterのみでページが欠ける実装を避ける。
+個人PUBLIC：公開アカウントの公開投稿のみ匿名閲覧可。ログイン中に片側ブロックがあれば除外。
+FOLLOWERS：本人とACCEPTEDフォロワーのみ。非公開アカウントの個人投稿はPUBLIC指定が来てもFOLLOWERSに制限。
+COMMUNITY：privateならACTIVE会員、publicなら匿名閲覧可。ただし非公開アカウントの投稿も公の集まりに出す場合は本人へ投稿前にその範囲を明示。
+投稿先コミュニティが可視性の正本。アカウントの非公開設定だけで公開の集まりの発言まで隠れると説明しない。
+ブロック：相互にDM、新規フォロー、反応、返信不可。フォロー関係と申請を削除。認証下のフィード・検索から除外。
+公開投稿はログアウトで読めるという制約を説明。ブロックをインターネット全体からの不可視と称さない。
+ミュート：フィード・通知で自分に出さない。他者へ通知しない。
+メディア、サムネイル、OGP、コメント、引用投稿、検索の各入口に同じ可視性を適用。
+管理者は報告内容の必要な範囲だけを閲覧。一般の会話一覧を無条件に閲覧できる管理画面は作らない。
+表示名匿名でもメールは必須認証情報として扱い、公開DTOから除く。パスワードは既存bcrypt方式を維持して検証する。
+CSRF/Originチェック、入力Zod、本文はプレーンテキスト、外部URLhttp/httpsだけ、プロフィールリンクrel=noopener noreferrer。
+レート制限は共有ストアまたはDBで行う。serverlessプロセスのメモリのみは不可。
+初期上限：投稿10/時、コメント60/時、DM60/分＋新規相手10/日、署名20/時、通報10/時。
+429にretryAfter。ログイン失敗はアカウント/IPの双方で制限し、存在有無が分かる文言を返さない。
+
+[8] メディア（写真と実動画）
+Cloudinaryは継続する。ただし現行の公開upload URL方式は非公開SNSに必要なアクセス制御を満たさない。
+本番配信はauthenticated媒体＋token-based CDNアクセスを採用。トークン期限120秒、対象媒体・変換パスを限定。
+Cloudinary公式の2026-10-07確認ではtoken/cookieアクセスはAdvanced以上かつ環境ごとの有効化が必要。
+費用は別途契約確認。無料で同等と約束しない。既存契約で機能が使えない場合、実装は継続しても本番公開ゲートを未達と明記する。
+自動で有料契約を結ばない。恒久署名URL・private_download_url・公開URLへ黙って落とすfallbackは禁止。
+CLOUDINARY_AUTH_TOKEN_KEYはAPI_SECRETとは異なるサーバー専用秘密。
+署名はログイン、ユーザー状態、添付制約、レート制限を検証後に発行する。
+ブラウザ→Cloudinaryへ直接upload。VercelのAPIを大容量動画の中継にしない。
+新規媒体IDはサーバー生成、uploadSessionに所有者・期限・予定publicIdを記録。所有者の違う媒体IDは投稿に添付不可。
+画像：JPEG/PNG/WebP/HEIC入力、各20MB以下、5枚まで。サーバー検証と変換後の幅高さ上限もチェック。
+動画：MP4/MOV入力、100MB以下、60秒以下。H.264/AAC MP4、1080p上限へ正規化、poster生成。
+GIF・SVG・HTMLは初版の投稿入力では不可。拡張子のみを信用しない。
+写真EXIF/GPSを公開派生媒体に残さない。元の位置情報を表示や検索に使わない。
+アップロード完了通知はクライアントのwidth/durationを信用せず、Cloudinary署名とサーバー照会で確認。
+非同期変換webhookは生bodyと公式SDK検証を用い、時刻の許容範囲5分、イベントIDを重複排除。
+署名済webhookのresource所有者をsessionと照合。READYになるまで他者へ公開しない。
+同じassetIDでも旧webhookで状態を巻き戻さない。許可遷移PENDING→PROCESSING→READY/FAILEDを定義。
+status READYの媒体だけ投稿確定。同一idempotency keyで再送は同じpostIDを返す。
+動画は手動再生、playsInline、controls、preload=metadata。画面外や非表示タブで停止。音声の自動再生なし。
+120秒URL失効はACLを再確認して再発行、再生位置を復元。ブロック後も既発行URLの残り最大120秒はアクセス可能な限界を明記。
+ダウンロード済みコピー・スクリーンショットの回収は保証しない。
+未添付媒体24時間、FAILED媒体7日で掃除。削除はproviderからoriginal/derivedを除去しCDN無効化も依頼、失敗は再試行キュー。
+旧公開媒体は認証媒体へコピー→所有者・post対応検証→公開URL破棄/invalidate。完了前に完全非公開とは表示しない。
+
+[9] 入力・保存・インポート/エクスポート
+caption最大2200書記素、comment最大1000、bio160、表示名30、DM2000、altText200。
+全角を保持。usernameのみASCII英数underscore3〜30、小文字で一意（旧usernameは互換維持）。
+下書きテキスト・順序・メディアIDをIndexedDBにuserId付きで保存し、ログアウト時は削除。
+原本Blobは自動の長期保存をしない。アップロード未完でタブを閉じると再選択が必要な旨を表示する。
+DBが原本、ブラウザはキャッシュ。ログアウトとアカウント切替で個人キャッシュを消去。
+JSONの一般ユーザー一括インポートは今版なし。運営移行ツールのみで検証済バックアップを読み込む。
+本人エクスポート：プロフィール、本人投稿、本人のコメント、参加情報をUTF-8 JSONとCSVで取得。
+他者のDM本文や非公開情報はこの通常エクスポートに含めない。メディア原本は別ジョブの期限付リンク。
+退会：再認証→受付→即時アカウント停止・公開非表示→7日以内に媒体/個人データ削除ジョブ、既存会話に削除済表示。
+通報記録等の必要な保存方針は利用規約とプライバシーポリシーに明示し、実際の運用と一致させる。
+
+[10] 画面・実装のファイル配置
+src/config/brand.tsにAPP_DISPLAY_NAME='DayNet'、description、themeColor、CINEMIX_URL optional。
+src/components/brand/{DayNetWordmark,DayNetMark}.tsx、src/components/layout/AppShell.tsx。
+src/lib/policies/*、src/lib/dto/*、src/lib/validation/*、src/lib/media/provider.ts、src/lib/media/cloudinary.ts。
+MediaProvider={signUpload,verifyUpload,verifyWebhook,issueDelivery,deleteAsset}。Cloudinary以外へ変える際はこの境界を差し替え。
+src/lib/integrations/cinemix.ts：FEATURE_CINEMIX_IMPORT=false。
+将来interfaceだけ定義する：CinemixDraft={version:1,source:'cinemix',externalId,mediaRef,caption?,checksum}。
+信頼境界はサーバー検証と本人同意。現在は公開APIを開けず受け取りを実装しない。
+public/brand/*へPNG/SVG、public/fonts/*へ必要フォントとライセンス参照。
+ロゴ用途で画像テキストを再生成しない。渡したSVGは既にアウトラインなので環境の字体差を受けない。
+既存cloudinary folder・localStorageキーを機械的改名しない。必要なら1回限りの移行コードとversionを付ける。
+文書内の旧名は履歴として残してよいが、利用者向け画面・manifest・OGP・メール表示・タイトルから旧名を除去する。
+
+[11] Windows 11での実行手順をREADMEに実装結果どおり記載
+前提：Git、Node.js 22 LTSの最新パッチ、npm、VS Code等。Nextのエンジン制約をロックと照合。
+1 ZIPを展開、PowerShellでプロジェクトへcd、git statusを確認。
+2 npm ci
+3 Copy-Item .env.example .env.local
+Prisma CLIも同じenvを参照するようdotenv読み込み位置を統一。秘密をgitに追加しない。
+4 Neon開発用DBを用意し、DATABASE_URL/DIRECT_URL、AUTH_SECRET、Cloudinary開発用環境を設定。
+既存OAuth用変数名は現行auth.ts/.env.exampleを維持。使うProviderだけ有効にする。
+5 npx prisma generate
+6 空の開発DBへ npx prisma migrate deploy
+新migration生成はnpx prisma migrate dev --name dotnet_v3（ローカル/開発DB限定）。本番では実行しない。
+7 npm run seed:options（新設、upsertでプロフィール選択肢のみ。実ユーザーや架空投稿を作らない）
+8 npm run dev -- --hostname 0.0.0.0
+PCはlocalhost:3000。iPhoneは同一LANのPC IPv4:3000で基本表示を確認（必要範囲のみFirewall許可）。
+ただしHTTP LANはPWA・カメラ権限などの本番確認にならない。実機はHTTPSのVercel Previewを併用。
+追加スクリプト：typecheck、test、test:e2e、db:backup、db:migrate、seed:options。
+
+[12] Vercel・PWA・運用
+Vercel PreviewとProductionでDB/Cloudinary/認証URLを分ける。Previewへ本番秘密を渡さない。
+build = prisma generate && next build。DB変更は承認された移行手順/CIジョブでprisma migrate deploy。
+SQLiteのdb pushを本番ビルドに残さない。破壊的な自動db push禁止。
+PWA manifest name/short_name DayNet、start_url /feed、display standalone、theme/background #F7F4F5。
+192/512 PNG、purpose any/maskableは安全域を確認して登録。apple-touch-icon180。
+service workerは公開の静的シェルとoffline.htmlのみキャッシュ。/api、DM、投稿本文、トークン付媒体はcacheしない。
+新バージョンは更新案内、投稿編集中に強制reloadしない。
+Push通知は未実装なので通知権限をいきなり要求しない。
+メディア処理・清掃は署名済cron/キューで、冪等、上限、再試行、失敗記録付き。
+cron呼出の秘密はserver専用。コスト上限とアラートを外部サービス側にも設定。
+ログにパスワード、メール全文、DM本文、媒体トークン、セッションを出さない。
+Sentry等を入れる場合も個人情報の収集は無効化し、利用規約へ実態を反映。
+
+[13] 受入基準・テスト（完了条件）
+A. 390×844 / 320×568 / 768×1024 / 1440×900で横スクロールなし。日本語・絵文字・200%文字拡大で操作可能。
+B. logo/metadata/manifest/通知文言に利用者向け旧名がない。綴りDayNet。CinemiXは補助表示だけ。
+C. 3項目の未選択・趣味2/4個・重複・不正IDはAPI422。直接onboardingDone=trueで迂回できない。
+D. 旧利用者の投稿・フォロー・DM・コミュニティID/件数を移行前後に比較し、差異を説明できる。
+E. 既存非公開userの投稿が/posts /feed /explore /home /u /notifications /search /OGPから漏れない。
+F. userAがB/C間の会話IDへPOSTしても403/404、メッセージが増えない。DM全操作に参加者チェック。
+G. 公開DTOにemail/password/tokensがない。ブロック後は相互の新規反応・DMが拒否される。
+H. 反応と保存が別端末・再読込後も継続。失敗時rollback。二重タップで重複レコードなし。
+I. 投稿20件+次ページに重複や欠落なし。新着挿入は「新しい投稿」操作で、読んでいる位置が飛ばない。
+J. iPhoneでHEIC、縦写真、MOV/MP4、60秒境界、100MB境界、回線切断、アップロード取消、処理失敗を実測。
+K. 他人のassetId添付・偽webhook・期限切れURL・URLの変換パス変更を拒否。トークンなし原本/派生取得不可。
+L. 投稿公開前は所有者以外が媒体を読めない。古い公開URLの削除を検証。未対応媒体を静止動画のふりで表示しない。
+M. 本当の動画だけ再生できる。無音初期、手動開始、画面外停止、音声/字幕アクセシビリティ表示を確認。
+N. 未認証/非会員が非公開コミュニティの本文やメディア、会員一覧を取得できない。
+O. 送信再試行とリロードで同一clientMessageId/投稿keyが二重に保存されない。
+P. iPhone Safari実機＋ホーム画面追加でsafe-area、キーボード、ログイン、戻る、共有、ファイル選択を確認。
+Q. service workerとブラウザキャッシュにDM/私的投稿が残らず、アカウント切替で他人の下書きが見えない。
+R. npm run lint、typecheck、test、build成功。Playwrightは重要5導線と認可失敗を検証。
+S. 通報→管理者の判断→非表示/復元が権限付きで動く。自分への通報でも一般利用者が運営権限を得ない。
+T. Cloudinary契約/トークン実配信検証未完、実iPhone未確認、DB未移行の場合は公開可能と報告しない。
+
+Unit：選択肢検証、ACL組合せ、反応/投稿冪等、pairKey、全角/絵文字の文字数。
+Integration：実Postgresトランザクション、並行フォロー/リアクション、媒体所有者、Webhook重複。
+E2E：登録→必須3項目→写真投稿→他アカウント返信→DM、非公開申請→承認、ブロック、投稿削除。
+外部の実サービス契約がない場合はadapterのテストとfixtureまで行い、実サービス未検証項目を一覧化。
+Mockで通ったことを本番配信検証済みとしない。
+
+[14] 実装の順序と引継ぎ
+Step1 P0権限・DTO・dbpush修正と回帰テスト。
+Step2 ブランドassetsとAppShell、必須プロフィール、既存写真SNSの主要5画面。
+Step3 保存・共感・承認・通報、DM差分取得、投稿下書き。
+Step4 メディア新配信・動画・旧媒体移行、PWA、DB移行リハーサル。
+Step5 実iPhone検証、QAの修正、Vercel Previewでレビュー。本番公開は設定・契約・移行の未完を解消した後。
+環境が不足しても非破壊の実装・テスト・設定手順作成まで進め、最後に必要な資格情報や契約を具体的に報告する。
+
+納品する実装物
+変更ソース、ロックファイル、migration、媒体移行/バックアップツール、.env.example、README.txt。
+CHANGELOG.txtに変更理由、TEST_RESULTS.txtに実行コマンドと結果/未実行、MIGRATION_RUNBOOK.txtに切替とロールバック。
+引継ぎHANDOFF.txtにcommit、変更ファイル、設計判断、外部サービス状態、既知課題、未達AC、次の1手。
+DBダンプや秘密はコードZIPに含めない。ブランド素材とOFLライセンスは配布物に同梱。
+元のAGENTSに従って根拠のない「完成」を避け、実機・権限・保存を確認して仕上げる。
+
+以下にブランド/UIの完全な指定を再掲します。感覚だけで変更せず、数値・文言・順序に沿って実装してください。
+
+
+
+
+DayNet / ブランド・UI仕様 v4
+2026-10-07
+今回の変更：名称、文字由来のマーク、配色、欧文・和文書体、ホーム、プロフィール、下部ナビ、ブランドボードを更新。
+SNS機能、必須プロフィール、CinemiXの控えめな系列表示、既存データ保全は前版の要件を継承。
+
+1. ブランド
+正式表記：DayNet（DとNを大文字）。読み：デイネット。
+説明：写真・動画・日記を投稿し、趣味の集まりで話せるSNS。
+短いメッセージ：写真と動画で、日常をつなぐ。
+マーク：角度と位置をずらした2つの三角形の輪郭。重なった領域を共有の場に見立てる。
+DやNなどの字形から造形しない。カメラ、再生ボタン、頭文字モノグラムにも置き換えない。
+CinemiXの文言：DayNetとCinemiXは、同じ系列のアプリです。
+About、設定、プロフィール末尾へ小さく表示。URL未設定ならリンク化しない。
+系列という説明は、データ連携・アカウント統合を意味しない。投稿に広告バナーを差し込まない。
+
+2. HEXカラー
+canvas #F7F4F5：薄いグレー寄りの背景。surface #FFFFFF：入力やモーダル。
+ink #302B38：濃いプラムの文字、下ナビ、主要ボタン。
+accent #EF7C68：コーラル。投稿入口、マークの前面三角形、重要な選択。
+lilac #E2DDF0：淡いライラック。プロフィールの背景、投稿入口、アイコンの地。
+muted #665F6E：補助文。line #D7D0DB：区切り。controlBorder #897F91：入力・補助ボタン枠。
+focus #79528C：フォーカス線。success #2F674D、warning #82530A、error #AA3446。
+補助面：#EDE8EF（タブの地）、#ECE7F3（返信の抜粋）、#F8D5CC（自分のDM）。
+accent上の文字はink。白文字はink上で使用。色のみで成功・失敗・選択を伝えない。
+前版の黄土色・ココア・紙色、青グラデーション、ガラス、ネオンは採用しない。
+
+3. タイポグラフィ
+欧文・数字：Outfit 400/500/600。ワードマークはOutfit600を字間調整してアウトライン化。
+和文：BIZ UDPGothic 400/700。本文の判別しやすさを重視。
+CSS例：font-family:'BIZ UDPGothic',sans-serif。欧文の小見出しは'Outfit','BIZ UDPGothic',sans-serif。
+画面h1 mobile24px/37px・700・letter-spacing -0.025em、desktop36px/48px。
+h2 20px/30px・700、セクション見出し16px/24px・700。
+投稿本文14px/26.6px・400、一般本文14px/24.5px。長文詳細は16px/28px。
+補助文12px/18px・400。見本内の短い時刻・補助タグ10〜11pxは非操作要素のみ。
+ボタン13px/20px・700、入力16px/30px・400。下ナビラベル10px/15px、操作領域は56px高。
+日付Outfit500 12px/18px・letter-spacing 0.08em。プロフィール数値20px/26px・500。
+大きなブランド表示48〜72px、UIでブランドコピーが写真を押し下げない。
+日本語・全角・半角・絵文字を保持。NFKCで本文や表示名を上書きしない。検索キーは別管理。
+フォントは同梱OFLライセンスと併せてローカル配信。外部フォントCDNを必須にしない。
+
+4. 寸法と構成
+spacing scale 4,8,12,16,18,20,24,32,40,48,64px。
+mobile320〜767、tablet768〜1119、desktop1120以上。
+mobile左右18px、360未満は14px。feed最大640px。PC外枠最大1120px、左右32px。
+PCは640pxのフィード＋264pxの補助索引、gap48px。左サイドバーは設けない。
+1120px以上は上ナビへ移動。1120未満は底からmax(12px,safe-area)に浮いた72px高のナビ。
+ナビ幅：min(100%-24px,610px)。角丸22px、背景ink、影0 6px 22px #302B381A。
+ナビはホーム・集まり・投稿・DM・自分。投稿ボタンは44px四方・角丸13pxのコーラル面。
+画面本文の末尾はcalc(112px + env(safe-area-inset-bottom))以上。入力中はキーボードに応じてナビを抑制し本文を隠さない。
+ヘッダー72px。ロゴ幅165px（360未満150px）。検索・通知44px四方。
+本文は通常のページスクロール。100dvh、safe-areaを使用。全体overflow:hiddenを避ける。
+写真：上角12px・下角3px。原比率の閲覧導線を設け、保存原本を勝手に切らない。
+標準写真見本は4:3。実フィードは4:5〜1.91:1を範囲として、全体表示へ拡大可能。
+プロフィール：背景lilac、角丸18px、padding20px。必須3項目は縦並びのラベル＋値。
+入力・ボタン角丸11px、タブ外枠10px、選択面7px。通常の投稿に外側のカード枠は付けない。
+標準ボタン46px高、入力47px高、タッチ対象44×44px以上、アイコン23px。
+タブも44px高以上。2行ラベルでも操作範囲を削らない。装飾だけの図形はタップ対象にしない。
+罫線1px solid line。プロフィール内の線のみ#BEB3CA。入力枠はcontrolBorder。
+影は下ナビ・モーダルのみ。モーダル0 16px 48px #302B3826。
+
+5. 状態とアクセシビリティ
+hover：明度を約5%下げる、150ms。active：translateY(1px)、押下領域を縮めない。
+focus-visible：3px solid focus、offset3px。アウトラインを消さない。
+selected：タブはink地＋白文字、下ナビはコーラル＋形/ラベル、反応はlilac＋aria-pressed。
+下ナビ選択は色だけでなくaria-current=pageとラベルの700を併用。
+disabled：opacity .45、操作不可理由を付記。read-onlyとdisabledを混同しない。
+loading：レイアウトの高さを保つskeleton最大3件、aria-busy。アップロードには実進捗。
+empty：「まだ投稿がありません。好きな集まりを探してみませんか。」＋集まりへ。
+success：「投稿しました」＋投稿詳細。トーストrole=status、3秒。結果は画面にも残す。
+warning：「接続が切れています。下書きはこの端末に保存しました。」＋再試行。
+error：理由を入力直下に置き、本文と添付を保持。401再ログイン、404閲覧不可、429再開時刻を案内。
+動画処理失敗は所有者だけに再選択/削除を案内。他者へ未完成媒体を公開しない。
+動画は手動再生・playsInline。reduced-motionでは自動アニメーションを停止。
+幾何学マークは非操作時alt=空、ロゴリンクならaria-label=DayNetのホーム。
+HTMLのデモには実投稿のような成功表示を出さず、保存・送信されないことを操作時に知らせる。
+
+6. 主要画面の仕様
+A ホーム /feed
+目的：知っている人・集まりの今日を読む。最重要は投稿媒体と投稿者、主操作は投稿と返信。
+優先順：ロゴ・通知→小さい投稿入口→フィードタブ→今日の日付→投稿。大きなブランド見出しは置かない。
+タブ：フォロー中＝フォロー相手＋自分の個人投稿。参加中＝参加コミュニティ投稿。みつける＝可視の公開投稿。
+初期はフォロー中、publishedAt降順＋idで安定ソート。公開時にpublishedAtを確定し、編集では変更しない。既存公開投稿は移行時にcreatedAtを補填する。合成人気値は禁止。
+mobileは浮いた下ナビ、写真の左右18px。PCは上ナビ＋右に参加集まりの短い索引だけ。
+遷移：投稿→/post/id、投稿者→/u/username、集まり→/communities/slug。
+取得失敗は再試行、オフラインは既表示分のみ（私的投稿を永続キャッシュしない）。
+
+B 集まり /communities と /communities/[slug]
+目的：趣味で交流を始める。重要情報は何の集まりか、参加条件、最近の投稿。
+検索→参加中→見つける。幾何学シンボル・名前・説明・実人数を横長のリストにまとめ、薄い罫線で区切る。
+mobileは一列、PCは最大960pxで説明幅を広げる。詳細は説明→参加状態→投稿タブ。
+非公開は参加申請、管理者承認後だけ本文・メディア可視。申請却下・退出を扱う。
+空なら「最初のひとことを書いてみませんか」。通信失敗は参加状態を楽観的確定しない。
+
+C 投稿 /create
+目的：写真・動画・文章を短い手順で投稿。最重要は添付プレビューと送信状態。
+上に戻る／投稿する、本文、写真・動画を選ぶ／撮影、添付順、投稿先と公開範囲。
+画像5枚まで、動画1本60秒まで、混在は今版なし。文章だけの日記も可。
+mobile写真並べ替えは左右移動ボタン、ドラッグだけにしない。PCはドラッグ併用。
+添付ごとに進捗・削除・代替テキスト入力。動画は処理完了まで下書き。
+公開先変更時は非公開から公開への拡張を明示。戻る時は下書き保存か破棄を選ぶ。
+投稿成功は詳細へ。失敗時はその場に入力と再試行を残す。
+
+D プロフィール /profile, /u/[username]
+目的：人柄から会話へ。上部の必須3項目は投稿一覧より前に表示。
+順：ライラック面の中にアバター・表示名→自己紹介→イキリポイント→残念な弱点→趣味3つ。面の外に数と操作→投稿/日記/集まり。
+自分は編集・共有。他者はフォロー・DMリクエスト。非公開は承認前に投稿本文を出さない。
+mobile3項目はライラックのプロフィール面の中に、ラベルと値を上下に配置。行頭に三角・円・ひし形の識別記号。PCも順序は同じ。
+プロフィールの集まり欄は本人が公開選択した公開コミュニティのみ。非公開参加先は出さない。
+自分の保存・足あと・設定は補助メニューへ。投稿に架空の足あと数は置かない。
+取得不能・ブロック時は存在の詳細を漏らさず戻る導線を出す。
+
+E DM /messages, /messages/[id]
+目的：会話を続ける。重要情報は相手、未読状態、送受信成否。
+一覧と会話本文は別ページ。mobileは1画面1会話、PC最大720pxで本文を広げる。
+相互フォローは通常会話、その他は受信リクエスト。未承認はテキスト1通まで、追送・リンクプレビューなし。
+ブロック・通報はヘッダーのメニュー。入力最大2000書記素。添付DMは今版対象外。
+送信中→送信済み／失敗、clientMessageIdで二重送信を防ぐ。
+閲覧中5秒ポーリング、バックグラウンド停止。失敗時は再試行。E2E暗号化と称さない。
+
+F オンボーディング /onboarding
+目的：3項目を必ず選び、会話のきっかけを作る。1ページ3段階、進捗1/3など。
+イキリポイント1個・残念な弱点1個・趣味3個。入力補助を付け、現版は運営管理の選択肢のみ。
+最後にプレビューして確定。途中保存可、必須のスキップ不可。完了後も編集できるが条件は維持。
+既存ユーザーは閲覧可能、新規投稿・コメント・DM開始の前に不足項目を補完させる。
+サーバーで必須検証。選択肢を削除する際は既選択ユーザーを壊さず非推奨化する。
+
+G 投稿詳細 /post/[id]
+目的：投稿と返信の文脈を読む。媒体→本文→反応→コメント。返信は1階層まで。
+編集は投稿者本人、削除は確認と実API。通報・ミュート・共有が機能する。
+公開投稿のみ匿名共有ページあり。限定投稿OGPは汎用画像・ブランド名のみ。
+
+H 通知／設定／About／管理
+通知は未読と既読、既読更新は本人のみ。いいね・気持ちわかる・返信・承認を通知。
+設定で非公開、DM、ブロック、足あと同意、ログアウト、退会、データ取得。
+AboutにCinemiX系列説明。管理はロール検証済みの通報キュー、非表示・停止・理由・監査記録。
+エラー時に管理者向け情報を一般利用者へ返さない。
+
+
+7. ロゴと素材の指定
+正本はassets/logo_horizontal.svg / logo_mark.svg。英字DayNetと幾何学マークを別の要素として扱う。
+wordmark.svgは文字のみ、logo_horizontal_reverse.svgは濃色背景用、logo_mark_mono.svgは単色。
+マークの正規viewBox=0 0 108 100。三角形A=(18,20),(79,38),(35,88)。B=(58,10),(90,75),(20,62)。
+stroke8、fill none、round join。Aをink、BをaccentとしてBが前。角度・位置を勝手に正三角形へ揃えない。
+片方を反転して六芒星にしたり、横向きの再生三角形に置き換えない。頭文字D/Nを隠し込まない。
+最小表示：マーク24px、横ロゴ幅132px。16px用faviconは別の簡略化SVGを使用。
+余白：マーク幅の0.18倍、横ロゴは高さの0.25倍。
+192/512アプリアイコンは背景lilac込み。マークを中央80%の安全域に収める。
+assets/apple_touch_icon_180.pngはiPhoneホーム画面用。不透明PNG。
+SVGのパスを実装に使い、画像生成で別の文字や三角形へ描き直さない。
+assets/icons/*.svgは24viewBox、stroke1.7、currentColor。
+assets/avatar_*.svgは人物画像を使わないデモ用の幾何学アバター。実ユーザーは自分の画像を設定可能。
+assets/ui_*.pngは390×844 CSS px、2倍解像度のモバイル見本。PCの正本は本書の寸法仕様。
+assets/demo_walk.pngはAI生成の架空写真。初期の本番投稿に架空利用者として投入しない。
+preview/index.htmlは見た目・遷移確認用。認証、送信、保存、検索、アップロードは実装対象でありデモでは動作しない。
+8. 今回の移行範囲
+DotNetのd字マーク、黄土色、Archivo、Zen Kaku Gothic New、DM Monoを現行デザインの正本から外す。
+既存ソースに残る旧名称・manifest・通知・OGP・メール表示もDayNetへ。
+内部のDB識別子・Cloudinaryの既存フォルダ・認証Providerの登録は名称変更だけで作り直さない。

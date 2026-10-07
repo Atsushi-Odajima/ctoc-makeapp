@@ -1,0 +1,53 @@
+{
+  "brand": "DayNet",
+  "version": 4,
+  "colors": {
+    "canvas": "#F7F4F5",
+    "surface": "#FFFFFF",
+    "ink": "#302B38",
+    "accent": "#EF7C68",
+    "lilac": "#E2DDF0",
+    "muted": "#665F6E",
+    "line": "#D7D0DB",
+    "controlBorder": "#897F91",
+    "focus": "#79528C",
+    "success": "#2F674D",
+    "warning": "#82530A",
+    "error": "#AA3446"
+  },
+  "fonts": {
+    "latin": "Outfit",
+    "japanese": "BIZ UDPGothic"
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    18,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64
+  ],
+  "radius": {
+    "photoTop": 12,
+    "photoBottom": 3,
+    "controls": 11,
+    "profile": 18,
+    "bottomNav": 22
+  },
+  "layout": {
+    "mobileGutter": 18,
+    "feedMax": 640,
+    "headerHeight": 72,
+    "navHeight": 72,
+    "breakpoints": [
+      768,
+      1120
+    ]
+  },
+  "minTouch": 44
+}

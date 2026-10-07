@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-07",
+  "requiredFiles": 13,
+  "utf8Txt": 11,
+  "localHtmlRefs": 22,
+  "pngDimensions": {
+    "pwa_icon_512.png": [
+      512,
+      512
+    ],
+    "logo_directions.png": [
+      1500,
+      800
+    ],
+    "logo_mark.png": [
+      800,
+      741
+    ],
+    "ui_overview.png": [
+      1800,
+      1160
+    ],
+    "ui_create.png": [
+      780,
+      1688
+    ],
+    "logo_horizontal.png": [
+      1600,
+      405
+    ],
+    "wordmark_reverse.png": [
+      1600,
+      536
+    ],
+    "apple_touch_icon_180.png": [
+      180,
+      180
+    ],
+    "ui_profile.png": [
+      780,
+      1688
+    ],
+    "logo_horizontal_reverse.png": [
+      1600,
+      405
+    ],
+    "brand_board.png": [
+      1800,
+      1400
+    ],
+    "logo_mark_mono.png": [
+      800,
+      741
+    ],
+    "ui_communities.png": [
+      780,
+      1688
+    ],
+    "wordmark.png": [
+      1600,
+      536
+    ],
+    "pwa_icon_192.png": [
+      192,
+      192
+    ],
+    "favicon_32.png": [
+      32,
+      32
+    ],
+    "ui_feed.png": [
+      780,
+      1688
+    ],
+    "ui_messages.png": [
+      780,
+      1688
+    ],
+    "logo_mark_reverse.png": [
+      800,
+      741
+    ],
+    "logo_preview.png": [
+      1400,
+      440
+    ],
+    "demo_walk.png": [
+      1448,
+      1086
+    ]
+  },
+  "contrastRatios": {
+    "ink/canvas": 12.57,
+    "muted/canvas": 5.61,
+    "ink/accent": 5.07,
+    "ink/lilac": 10.36,
+    "muted/lilac": 4.62,
+    "canvas/ink": 12.57,
+    "focus/canvas": 5.65,
+    "controlBorder/surface": 3.81
+  },
+  "scope": "design-package-only; app-source-not-modified"
+}

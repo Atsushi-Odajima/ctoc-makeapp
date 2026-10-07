@@ -1,28 +1,28 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { ok, route } from "@/lib/api/http"
+import { requireViewer } from "@/lib/api/viewer"
+import { setReaction } from "@/lib/services/reactions"
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id: postId } = await params
-  const uid = session.user.id
+type Ctx = { params: Promise<{ id: string }> }
 
-  const existing = await prisma.like.findUnique({ where: { userId_postId: { userId: uid, postId } } })
-  if (existing) {
-    await prisma.like.delete({ where: { userId_postId: { userId: uid, postId } } })
-    return NextResponse.json({ liked: false })
-  } else {
-    await prisma.like.create({ data: { userId: uid, postId } })
-    const post = await prisma.post.findUnique({ where: { id: postId }, select: { userId: true } })
-    if (post && post.userId !== uid) {
-      try {
-        await prisma.notification.create({ data: { userId: post.userId, type: "like", fromUserId: uid, postId, content: "あなたの投稿にいいねしました" } })
-      } catch { /* skip */ }
-    }
-    return NextResponse.json({ liked: true })
-  }
-}
+export const PUT = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  return ok(await setReaction(await requireViewer(), id, "like", true))
+})
+
+export const DELETE = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  return ok(await setReaction(await requireViewer(), id, "like", false))
+})
+
+/**
+ * DEPRECATED compatibility endpoint (old clients toggled with POST). Kept until 2027-01-31 for
+ * external callers, if any. New code must use PUT/DELETE which are idempotent.
+ */
+export const POST = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await requireViewer()
+  const { prisma } = await import("@/lib/db")
+  const existing = await prisma.like.findUnique({ where: { userId_postId: { userId: viewer.id, postId: id } } })
+  const result = await setReaction(viewer, id, "like", !existing)
+  return ok({ ...result, liked: result.active }, { headers: { Deprecation: "true", Sunset: "Sun, 31 Jan 2027 00:00:00 GMT" } })
+})

@@ -1,48 +1,50 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { Errors } from "@/lib/api/errors"
+import { getViewer, requireCompleteProfile } from "@/lib/api/viewer"
 import { getNewsMetric } from "@/lib/news"
+import { notBlockedUserWhere } from "@/lib/policies/relationships"
+import { toUserSummary, userSummarySelect } from "@/lib/dto/user"
+import { deliveryProvider } from "@/lib/media/delivery"
+import { enforce } from "@/lib/rate-limit"
+import { LIMITS, plainText } from "@/lib/validation/text"
+import { z } from "zod"
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+type Ctx = { params: Promise<{ id: string }> }
+const schema = z.object({ content: plainText(LIMITS.comment, { min: 1 }) }).strict()
+
+export const GET = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await getViewer()
   const article = await prisma.newsArticle.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
+  if (!article) throw Errors.notFound()
   const [comments, metrics] = await Promise.all([
     prisma.newsComment.findMany({
-      where: { articleId: id },
-      include: { user: { select: { id: true, name: true, username: true, avatar: true } } },
+      where: { articleId: id, user: notBlockedUserWhere(viewer?.id ?? null) },
+      select: { id: true, content: true, createdAt: true, user: { select: userSummarySelect } },
       orderBy: { createdAt: "desc" },
       take: 80,
     }),
     getNewsMetric(id),
   ])
+  const provider = await deliveryProvider()
+  return ok({ comments: comments.map(c => ({ id: c.id, content: c.content, createdAt: c.createdAt.toISOString(), user: toUserSummary(c.user, provider) })), metrics })
+})
 
-  return NextResponse.json({ comments, metrics })
-}
-
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const { id } = await params
-  const body = await request.json().catch(() => ({}))
-  const content = typeof body.content === "string" ? body.content.trim() : ""
-  if (!content || content.length > 500) return NextResponse.json({ error: "コメントは1〜500文字で入力してください" }, { status: 400 })
-
+export const POST = route(async (request: Request, ctx: Ctx) => {
+  const viewer = await requireCompleteProfile()
+  const { id } = await ctx.params
+  const { content } = await parseBody(request, schema)
   const article = await prisma.newsArticle.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
+  if (!article) throw Errors.notFound()
+  await enforce("comment", viewer.id)
   const comment = await prisma.newsComment.create({
-    data: { articleId: id, userId: session.user.id, content },
-    include: { user: { select: { id: true, name: true, username: true, avatar: true } } },
+    data: { articleId: id, userId: viewer.id, content },
+    select: { id: true, content: true, createdAt: true, user: { select: userSummarySelect } },
   })
-  const metrics = await getNewsMetric(id)
-  return NextResponse.json({ comment, metrics }, { status: 201 })
-}
+  const provider = await deliveryProvider()
+  return ok({
+    comment: { id: comment.id, content: comment.content, createdAt: comment.createdAt.toISOString(), user: toUserSummary(comment.user, provider) },
+    metrics: await getNewsMetric(id),
+  }, { status: 201 })
+})

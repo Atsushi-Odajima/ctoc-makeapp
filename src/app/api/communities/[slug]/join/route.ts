@@ -1,27 +1,21 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { ok, route } from "@/lib/api/http"
+import { requireViewer } from "@/lib/api/viewer"
+import { getCommunityDTO, joinCommunity, leaveCommunity } from "@/lib/services/communities"
 
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { slug } = await params
-  const community = await prisma.community.findUnique({ where: { slug } })
-  if (!community) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  if (community.isPrivate) return NextResponse.json({ error: "承認制コミュニティです" }, { status: 403 })
+type Ctx = { params: Promise<{ slug: string }> }
 
-  const key = { communityId_userId: { communityId: community.id, userId: session.user.id } }
-  const membership = await prisma.communityMember.findUnique({ where: key })
-  if (membership?.role === "owner") return NextResponse.json({ joined: true, role: "owner" })
+// Public community: joins immediately. Private community: creates a PENDING request.
+export const POST = route(async (_request: Request, ctx: Ctx) => {
+  const { slug } = await ctx.params
+  const viewer = await requireViewer()
+  await joinCommunity(viewer, slug)
+  return ok(await getCommunityDTO(viewer.id, slug))
+})
 
-  if (membership) {
-    await prisma.communityMember.delete({ where: key })
-    return NextResponse.json({ joined: false, role: null })
-  }
-
-  await prisma.communityMember.create({ data: { communityId: community.id, userId: session.user.id } })
-  return NextResponse.json({ joined: true, role: "member" })
-}
+// Leave, or cancel a pending request.
+export const DELETE = route(async (_request: Request, ctx: Ctx) => {
+  const { slug } = await ctx.params
+  const viewer = await requireViewer()
+  await leaveCommunity(viewer, slug)
+  return ok(await getCommunityDTO(viewer.id, slug))
+})

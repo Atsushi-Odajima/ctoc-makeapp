@@ -1,64 +1,305 @@
+// DayNet v4 schema (PostgreSQL / Neon).
+// DATABASE_URL = pooled connection (runtime), DIRECT_URL = direct connection (migrations).
+// Internal identifiers (table names, existing column names, Cloudinary folders) are kept
+// from the previous Harenowa/Feeld schema so existing rows, IDs and URLs stay valid.
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum DmPolicy {
+  MUTUAL_OR_REQUEST
+  CLOSED
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProfileOptionKind {
+  STRENGTH
+  WEAKNESS
+  HOBBY
+}
+
+enum PostKind {
+  NOTE
+  PHOTO
+  VIDEO
+}
+
+enum PostVisibility {
+  PUBLIC
+  FOLLOWERS
+  COMMUNITY
+}
+
+enum PostStatus {
+  DRAFT
+  PROCESSING
+  PUBLISHED
+  FAILED
+  DELETED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+enum MediaStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  DELETING
+}
+
+enum MediaPurpose {
+  POST
+  AVATAR
+}
+
+enum UploadSessionState {
+  OPEN
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+}
+
+enum MemberRole {
+  OWNER
+  MODERATOR
+  MEMBER
+}
+
+enum ConversationState {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+  MESSAGE
+}
+
+enum ReportState {
+  OPEN
+  REVIEWING
+  RESOLVED
 }
 
 model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  password       String
-  name           String
-  username       String   @unique
-  bio            String?
-  avatar         String?
-  website        String?
-  isPrivate      Boolean  @default(false)
-  onboardingDone Boolean  @default(false)
-  lastActive     DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String        @id @default(cuid())
+  email            String        @unique
+  password         String
+  name             String
+  username         String        @unique
+  bio              String?
+  avatar           String? // legacy external avatar URL (internal only, never in public DTO as-is)
+  avatarMediaId    String?       @unique
+  website          String?
+  isPrivate        Boolean       @default(false)
+  onboardingDone   Boolean       @default(false) // derived server-side from the introduction; never client-writable
+  strengthOptionId String?
+  weaknessOptionId String?
+  profileVersion   Int           @default(0)
+  footprintOptIn   Boolean       @default(false)
+  role             Role          @default(USER)
+  dmPolicy         DmPolicy      @default(MUTUAL_OR_REQUEST)
+  status           AccountStatus @default(ACTIVE)
+  suspendedAt      DateTime?
+  deletionRequestedAt DateTime?
+  lastActive       DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  posts                  Post[]
-  comments               Comment[]
-  likes                  Like[]
-  followers              Follow[]                 @relation("Following")
-  following              Follow[]                 @relation("Followers")
-  stories                Story[]
-  notifications          Notification[]
-  footprintsReceived     Footprint[]              @relation("Visited")
-  footprintsMade         Footprint[]              @relation("Visitor")
-  sentMessages           DirectMessage[]
-  conversations          ConversationParticipant[]
-  newsComments           NewsComment[]
-  communityMemberships   CommunityMember[]
-  communitiesOwned       Community[]                @relation("CommunityOwner")
-  accounts               Account[]
-  sessions               Session[]
+  strengthOption ProfileOption? @relation("UserStrength", fields: [strengthOptionId], references: [id], onDelete: Restrict)
+  weaknessOption ProfileOption? @relation("UserWeakness", fields: [weaknessOptionId], references: [id], onDelete: Restrict)
+  avatarMedia    Media?         @relation("UserAvatar", fields: [avatarMediaId], references: [id], onDelete: SetNull)
+  hobbies        UserHobby[]
+
+  posts                Post[]
+  comments             Comment[]
+  likes                Like[]
+  empathies            Empathy[]
+  bookmarks            Bookmark[]
+  followers            Follow[]                  @relation("Following")
+  following            Follow[]                  @relation("Followers")
+  stories              Story[]
+  notifications        Notification[]
+  footprintsReceived   Footprint[]               @relation("Visited")
+  footprintsMade       Footprint[]               @relation("Visitor")
+  sentMessages         DirectMessage[]
+  conversations        ConversationParticipant[]
+  conversationsStarted Conversation[]            @relation("ConversationInitiator")
+  newsComments         NewsComment[]
+  communityMemberships CommunityMember[]
+  communitiesOwned     Community[]               @relation("CommunityOwner")
+  ownedMedia           Media[]                   @relation("MediaOwner")
+  uploadSessions       UploadSession[]
+  blocksMade           Block[]                   @relation("Blocker")
+  blocksReceived       Block[]                   @relation("Blocked")
+  mutesMade            Mute[]                    @relation("Muter")
+  mutesReceived        Mute[]                    @relation("Muted")
+  communityMutes       CommunityMute[]
+  reportsMade          Report[]
+  moderationActions    ModerationAction[]
+  idempotencyKeys      IdempotencyKey[]
+  accounts             Account[]
+  sessions             Session[]
+}
+
+model ProfileOption {
+  id        String            @id // stable string id, e.g. "hobby_cafe"
+  kind      ProfileOptionKind
+  label     String
+  sortOrder Int               @default(0)
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  strengthUsers User[]      @relation("UserStrength")
+  weaknessUsers User[]      @relation("UserWeakness")
+  hobbyUsers    UserHobby[]
+
+  @@unique([kind, label])
+  @@index([kind, active, sortOrder])
+}
+
+model UserHobby {
+  userId   String
+  optionId String
+  position Int // 0..2 (CHECK constraint in migration)
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  option ProfileOption @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@id([userId, optionId])
+  @@unique([userId, position])
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  userId    String
-  caption   String?
-  images    String   @default("[]")
-  location  String?
+  id            String         @id @default(cuid())
+  userId        String
+  caption       String?
+  images        String         @default("[]") // legacy public URLs; kept until media migration completes (internal only)
+  location      String?
   newsArticleId String?
   communityId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  kind          PostKind       @default(NOTE)
+  visibility    PostVisibility @default(PUBLIC)
+  status        PostStatus     @default(PUBLISHED)
+  publishedAt   DateTime?
+  deletedAt     DateTime?
+  hiddenAt      DateTime? // moderation
+  revision      Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   newsArticle NewsArticle? @relation(fields: [newsArticleId], references: [id], onDelete: SetNull)
   community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
   likes       Like[]
+  empathies   Empathy[]
+  bookmarks   Bookmark[]
   comments    Comment[]
+  media       Media[]
 
   @@index([newsArticleId, createdAt])
   @@index([communityId, createdAt])
+  @@index([publishedAt, id])
+  @@index([userId, publishedAt, id])
+  @@index([communityId, publishedAt, id])
+  @@index([status, publishedAt])
+}
+
+model Media {
+  id              String        @id @default(cuid())
+  ownerId         String
+  postId          String?
+  purpose         MediaPurpose  @default(POST)
+  sortOrder       Int           @default(0)
+  kind            MediaKind
+  provider        String        @default("cloudinary") // cloudinary | local | legacy-url
+  providerAssetId String? // provider asset id (e.g. Cloudinary asset_id)
+  providerPublicId String?      @unique
+  resourceType    String? // image | video
+  deliveryType    String? // authenticated | upload (legacy public)
+  version         String?
+  width           Int?
+  height          Int?
+  durationMs      Int?
+  bytes           Int?
+  format          String?
+  altText         String?
+  status          MediaStatus   @default(PENDING)
+  errorCode       String?
+  legacyUrl       String? // internal only: original public URL for media backfilled from Post.images
+  lastEventAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  owner      User           @relation("MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  post       Post?          @relation(fields: [postId], references: [id], onDelete: SetNull)
+  avatarOf   User?          @relation("UserAvatar")
+  uploadSession UploadSession?
+
+  @@index([postId, sortOrder])
+  @@index([ownerId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model UploadSession {
+  id               String             @id @default(cuid())
+  ownerId          String
+  mediaId          String             @unique
+  expiresAt        DateTime
+  state            UploadSessionState @default(OPEN)
+  expectedKind     MediaKind
+  maxBytes         Int
+  providerPublicId String             @unique
+  createdAt        DateTime           @default(now())
+
+  owner User  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+}
+
+model WebhookEvent {
+  id         String   @id // dedupe key derived from the verified payload
+  provider   String
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
 }
 
 model Like {
@@ -70,31 +311,130 @@ model Like {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@id([userId, postId])
+  @@index([postId])
+}
+
+model Empathy {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([postId])
+}
+
+model Bookmark {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([userId, createdAt])
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   postId    String
   userId    String
   content   String
   parentId  String?
-  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  hiddenAt  DateTime?
+  createdAt DateTime  @default(now())
 
   post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent  Comment?  @relation("Replies", fields: [parentId], references: [id])
   replies Comment[] @relation("Replies")
+
+  @@index([postId, createdAt])
 }
 
 model Follow {
   followerId  String
   followingId String
-  createdAt   DateTime @default(now())
+  status      FollowStatus @default(ACCEPTED)
+  createdAt   DateTime     @default(now())
+  acceptedAt  DateTime?
 
   follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
   following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@id([followerId, followingId])
+  @@index([followingId, status])
+}
+
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model Mute {
+  userId       String
+  targetUserId String
+  createdAt    DateTime @default(now())
+
+  user   User @relation("Muter", fields: [userId], references: [id], onDelete: Cascade)
+  target User @relation("Muted", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@id([userId, targetUserId])
+}
+
+model CommunityMute {
+  userId      String
+  communityId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@id([userId, communityId])
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  reasonCode String
+  detail     String? // <= 1000 chars (CHECK constraint in migration)
+  state      ReportState      @default(OPEN)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([state, createdAt])
+  @@index([targetType, targetId])
+}
+
+// Append-only audit log. UPDATE/DELETE are rejected by a trigger (see migration).
+model ModerationAction {
+  id         String           @id @default(cuid())
+  actorId    String
+  targetType ReportTargetType
+  targetId   String
+  action     String
+  reason     String
+  reportId   String?
+  createdAt  DateTime         @default(now())
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([targetType, targetId, createdAt])
 }
 
 model Story {
@@ -108,14 +448,19 @@ model Story {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Profile-visit record. Stored only when both users opted in; deduplicated per UTC day; kept 30 days.
 model Footprint {
   id        String   @id @default(cuid())
   visitorId String
   visitedId String
+  visitDay  String? // "YYYY-MM-DD" (UTC). NULL only for legacy rows recorded before v4.
   visitedAt DateTime @default(now())
 
   visitor User @relation("Visitor", fields: [visitorId], references: [id], onDelete: Cascade)
   visited User @relation("Visited", fields: [visitedId], references: [id], onDelete: Cascade)
+
+  @@unique([visitorId, visitedId, visitDay])
+  @@index([visitedId, visitedAt])
 }
 
 model Notification {
@@ -129,13 +474,19 @@ model Notification {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt, id])
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String            @id @default(cuid())
+  pairKey     String?           @unique // sorted "userA:userB"; NULL only for legacy duplicates/non-pair rows
+  state       ConversationState @default(ACCEPTED)
+  initiatorId String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
+  initiator    User?                     @relation("ConversationInitiator", fields: [initiatorId], references: [id], onDelete: SetNull)
   participants ConversationParticipant[]
   messages     DirectMessage[]
 }
@@ -143,23 +494,72 @@ model Conversation {
 model ConversationParticipant {
   conversationId String
   userId         String
+  lastReadAt     DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([conversationId, userId])
+  @@index([userId])
 }
 
 model DirectMessage {
-  id             String    @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String
-  readAt         DateTime?
-  createdAt      DateTime  @default(now())
+  id              String    @id @default(cuid())
+  conversationId  String
+  senderId        String
+  content         String
+  clientMessageId String?
+  readAt          DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, clientMessageId])
+  @@index([conversationId, createdAt, id])
+}
+
+model IdempotencyKey {
+  userId      String
+  scope       String
+  key         String
+  requestHash String
+  resultId    String?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, scope, key])
+  @@index([expiresAt])
+}
+
+// Shared fixed-window counters for rate limiting (works across serverless instances).
+model RateLimitBucket {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+// Retry queue for provider-side deletions (originals + derived + CDN invalidation).
+model MediaDeletionJob {
+  id               String    @id @default(cuid())
+  mediaId          String?
+  provider         String
+  providerPublicId String
+  resourceType     String
+  deliveryType     String
+  attempts         Int       @default(0)
+  lastError        String?
+  nextAttemptAt    DateTime  @default(now())
+  doneAt           DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([doneAt, nextAttemptAt])
 }
 
 model NewsArticle {
@@ -226,21 +626,25 @@ model Community {
   owner   User?             @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   members CommunityMember[]
   posts   Post[]
+  mutes   CommunityMute[]
 
   @@index([category, createdAt])
 }
 
 model CommunityMember {
-  communityId String
-  userId      String
-  role        String   @default("member")
-  createdAt   DateTime @default(now())
+  communityId   String
+  userId        String
+  role          MemberRole   @default(MEMBER)
+  status        MemberStatus @default(ACTIVE)
+  showOnProfile Boolean      @default(false)
+  createdAt     DateTime     @default(now())
 
   community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([communityId, userId])
   @@index([userId, createdAt])
+  @@index([communityId, status])
 }
 
 model Account {

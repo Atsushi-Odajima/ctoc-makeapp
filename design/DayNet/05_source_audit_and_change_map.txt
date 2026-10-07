@@ -1,0 +1,69 @@
+DayNet / 元ソース監査と変更表
+調査：2026-10-07　方法：ZIP内ソースの静的確認。稼働環境への侵入テストではない。
+対象：01-ctoc-makeapp-main.zip。展開対象118ファイル。DB実データ・本番環境変数は含まれない。
+参照リポジトリ： https://github.com/Atsushi-Odajima/ctoc-makeapp
+参照セッションID：019f1992-42f5-7a11-b9dd-d889459e478e（内容の直接取得なし）
+
+現物の技術構成
+Next.js 16.2.9 / React 19.2.4 / Prisma 6.19.3 / SQLite / NextAuth 5 beta / Cloudinary / Tailwind 4。
+Supabase Auth製ではない。過去の企画資料より、今回のZIPのpackage-lockとschemaを優先する。
+表示上ハレノワ、内部にFeeld名、manifestにハレノワ。現行UIは白・紺・オレンジ、スマホ幅のPC表示。
+
+優先度P0：UI以前に修正する事項
+1. src/app/api/dm/[id]/route.ts POST（24行目以降）
+GETは参加者確認があるがPOSTはセッション確認後にそのままDirectMessageを作成する。
+会話IDを知る非参加者からの送信を防ぐため、参加者・ブロック・DM許可・会話状態を検査。
+2. src/app/api/users/[username]/route.ts（33行目）
+password等を除いたuserの残りを返すため、email等の非公開フィールドが応答に混入する。
+明示的selectと公開DTOへ変更。オブジェクトの除外方式で秘密を守らない。
+3. src/app/api/posts/route.ts GET / users/[username]/posts / feed / explore / home
+投稿可視性、非公開アカウント、非公開コミュニティ、ブロックを統一的に評価する必要がある。
+現行の取得経路すべてに同一の閲覧条件を適用する。画面で隠すだけでは不可。
+4. package.json vercel-build = prisma db push && next build
+SQLiteをVercelの永続本番DBとして扱わない。本番はNeon Postgresへ移行し、マイグレーションをビルドから分離。
+既存DBの有無・所在地を確認し、バックアップとリハーサル前に本番へpushしない。
+5. 公開Cloudinary URLに依存した非公開メディアの問題
+既存URLを知る人のアクセスは、プロフィールを非公開にしただけでは取り消せない。
+新しいACL対応媒体配信と旧URLの移行・破棄を実施するまで、完全な非公開を実装済みと説明しない。
+
+優先度P1：見かけの機能を実機能へ
+src/components/feed/PostCard.tsx
+・21行目savedはuseStateのみ。保存APIとBookmarkモデルを追加する。
+・16行目quickReactionsとその選択は画面状態のみ。LIKE/EMPATHYを永続化する。
+・117行目「足あと」はlikes+comments+7等の計算値。削除する。実閲覧数へ読み替えない。
+・共有／メニューを実際の操作につなぐ。すべてのボタンに遷移・状態・エラー復帰を付ける。
+src/app/onboarding/page.tsx / api/profile/route.ts
+・必須3項目は現物にない。趣味はbioへの追記ではなく正規化した選択データへ。
+・onboardingDoneの任意PATCHとスキップを廃止。完了はサーバーが条件から決める。
+src/hooks/useMessages.ts
+・取得は一度のみ。開いている会話は5秒毎の差分取得、バックグラウンドでは停止。
+・リアルタイムWebSocket実装済みと称さない。
+src/app/api/dm/route.ts
+・participants.every条件だけでは2人の一致を保証しない。正規化pairKey一意制約を追加。
+src/app/api/users/[username]/route.ts
+・GETに足あと記録の副作用がある。双方同意のPOSTイベントに分離する。
+
+優先度P2：デザインと媒体拡張
+src/app/page.tsx / api/home/route.ts
+画像付き投稿をReelsとして見せる処理がある。静止画像に動画再生UIを付けない。
+ログイン後の主導線は/feedへ。ニュースは副導線/newsで維持する。
+src/app/(main)/create/page.tsx
+現行はimage/*・画像5枚。動画入力は未実装。Mediaテーブルと処理状態を設ける。
+src/app/(main)/layout.tsx
+max-w-lg・固定高さoverflowの組み合わせを改め、文書スクロールとsafe-areaを扱う。
+src/components/layout/{BottomNav,TopBar,PortalHeader,InstagramNav}.tsx
+表示責務の重複を整理してDayNetのAppShellへ統一。URLや利用者IDの名称変更は不要。
+src/components/ui/FeeldLogo.tsx / public/logo.svg / manifest / icons / metadata
+新ロゴへ切替。互換exportを一時用意してimport漏れを防ぎ、全参照を検査して撤去。
+Cloudinaryの既存feeldフォルダやharenowa-seen-postsを文字列一括置換で消さない。
+
+残すもの
+利用者ID、認証連携、プロフィール既存文、投稿、画像、フォロー、コメント、DM、参加コミュニティ。
+ニュース記事／引用投稿／過去ストーリーも無断削除しない。新トップ画面での優先度を下げる。
+旧ストーリーの期限切れ非表示を維持。新UIの必須主導線にはしない。
+
+確認限界
+実DB、既存利用者数、外部サービス契約、配信URLの現状、実iPhone挙動は未確認。
+この監査は指摘の再現テスト済みを意味しない。修正後は01の権限テストで検証する。
+
+今回v4の追記：上記は同日確認した元ZIPの静的監査を継承。名称とデザイン資料を更新した段階で、ソース上の指摘を修正済みとはしていない。

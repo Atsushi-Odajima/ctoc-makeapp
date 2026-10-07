@@ -1,27 +1,26 @@
-import { NextRequest, NextResponse } from "next/server"
 import { hash } from "bcryptjs"
 import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { Errors } from "@/lib/api/errors"
+import { registerSchema } from "@/lib/validation/schemas"
+import { clientIp, enforce, hashKey } from "@/lib/rate-limit"
 
-export async function POST(req: NextRequest) {
-  try {
-    const { email, password, name, username } = await req.json()
-    if (!email || !password || !name) return NextResponse.json({ error: "必要項目を入力してください" }, { status: 400 })
-    if (password.length < 6) return NextResponse.json({ error: "パスワードは6文字以上にしてください" }, { status: 400 })
-
-    const finalUsername = username?.trim() || `${email.split("@")[0].replace(/[^a-z0-9_]/gi, "_").toLowerCase()}_${Math.floor(Math.random() * 999)}`
-
-    const [emailExists, usernameExists] = await Promise.all([
-      prisma.user.findUnique({ where: { email } }),
-      prisma.user.findUnique({ where: { username: finalUsername } }),
-    ])
-    if (emailExists) return NextResponse.json({ error: "このメールアドレスはすでに使われています" }, { status: 409 })
-    if (usernameExists) return NextResponse.json({ error: "このユーザー名はすでに使われています" }, { status: 409 })
-
-    const hashedPassword = await hash(password, 12)
-    const user = await prisma.user.create({ data: { email, password: hashedPassword, name, username: finalUsername } })
-    return NextResponse.json({ id: user.id, email: user.email, name: user.name, username: user.username })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "登録に失敗しました" }, { status: 500 })
-  }
-}
+export const POST = route(async (request: Request) => {
+  await enforce("register", hashKey(clientIp(request.headers)))
+  const input = await parseBody(request, registerSchema)
+  const email = input.email
+  const username = input.username || `${email.split("@")[0]!.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 20).padEnd(3, "_")}_${Math.floor(Math.random() * 9000 + 1000)}`
+  const [emailExists, usernameExists] = await Promise.all([
+    prisma.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true } }),
+    prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } }, select: { id: true } }),
+  ])
+  if (emailExists) throw Errors.conflict("このメールアドレスは登録に使えません。ログインをお試しください", "EMAIL_UNAVAILABLE")
+  if (usernameExists) throw Errors.invalid("このユーザー名はすでに使われています", { username: ["別のユーザー名にしてください"] }, "USERNAME_TAKEN")
+  // Same bcrypt scheme/cost as before so existing passwords keep working.
+  const password = await hash(input.password, 12)
+  const user = await prisma.user.create({
+    data: { email, password, name: input.name.trim(), username, onboardingDone: false },
+    select: { id: true, username: true },
+  })
+  return ok({ id: user.id, username: user.username }, { status: 201 })
+})

@@ -1,29 +1,72 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { Errors } from "@/lib/api/errors"
+import { requireViewer, isProfileComplete } from "@/lib/api/viewer"
+import { profilePatchSchema } from "@/lib/validation/schemas"
+import { publicUserSelect, toUserSummary } from "@/lib/dto/user"
+import { deliveryProvider, toMediaDTO } from "@/lib/media/delivery"
+import { getPublicProfile } from "@/lib/services/profile"
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      _count: { select: { posts: true, followers: true, following: true } },
+async function ownProfile(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: {
+      ...publicUserSelect,
+      email: true, dmPolicy: true, footprintOptIn: true, role: true, profileVersion: true,
+      strengthOptionId: true, weaknessOptionId: true, password: true,
+      _count: { select: { hobbies: true } },
     },
   })
-  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  const { password: _, ...safe } = user
-  return NextResponse.json({ ...safe, postsCount: user._count.posts, followersCount: user._count.followers, followingCount: user._count.following })
+  const provider = await deliveryProvider()
+  const publicView = await getPublicProfile(userId, user.username)
+  return {
+    ...publicView,
+    ...toUserSummary(user, provider),
+    avatarMedia: user.avatarMedia?.status === "READY" ? toMediaDTO(user.avatarMedia, provider) : null,
+    // Self-only fields (never part of PublicUser):
+    email: user.email,
+    dmPolicy: user.dmPolicy,
+    footprintOptIn: user.footprintOptIn,
+    role: user.role,
+    hasPassword: !!user.password,
+    profileVersion: user.profileVersion,
+    profileComplete: isProfileComplete(user),
+  }
 }
 
-export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const body = await req.json()
-  const allowed = ["name", "bio", "avatar", "website", "isPrivate", "onboardingDone"]
+export const GET = route(async () => {
+  const viewer = await requireViewer()
+  return ok(await ownProfile(viewer.id))
+})
+
+export const PATCH = route(async (request: Request) => {
+  const viewer = await requireViewer()
+  // .strict(): onboardingDone / role / status / email / password are rejected with 422.
+  const input = await parseBody(request, profilePatchSchema)
   const data: Record<string, unknown> = {}
-  for (const k of allowed) if (k in body) data[k] = body[k]
-  const user = await prisma.user.update({ where: { id: session.user.id }, data })
-  const { password: _, ...safe } = user
-  return NextResponse.json(safe)
-}
+  if (input.name !== undefined) data.name = input.name.trim()
+  if (input.bio !== undefined) data.bio = input.bio?.trim() ? input.bio : null
+  if (input.website !== undefined) data.website = input.website ? input.website : null
+  if (input.isPrivate !== undefined) data.isPrivate = input.isPrivate // existing ACCEPTED followers are kept
+  if (input.dmPolicy !== undefined) data.dmPolicy = input.dmPolicy
+  if (input.footprintOptIn !== undefined) data.footprintOptIn = input.footprintOptIn
+  if (input.avatarMediaId !== undefined) {
+    if (input.avatarMediaId === null) {
+      data.avatarMediaId = null
+      data.avatar = null
+    } else {
+      const media = await prisma.media.findFirst({
+        where: { id: input.avatarMediaId, ownerId: viewer.id, purpose: "AVATAR", status: "READY", kind: "IMAGE" },
+        select: { id: true },
+      })
+      if (!media) throw Errors.invalid("アイコンに使えない画像です", { avatarMediaId: ["選び直してください"] })
+      data.avatarMediaId = media.id
+    }
+  }
+  await prisma.user.update({ where: { id: viewer.id }, data })
+  if (input.isPrivate === false) {
+    // Becoming public: pending follow requests no longer need approval.
+    await prisma.follow.updateMany({ where: { followingId: viewer.id, status: "PENDING" }, data: { status: "ACCEPTED", acceptedAt: new Date() } })
+  }
+  return ok(await ownProfile(viewer.id))
+})

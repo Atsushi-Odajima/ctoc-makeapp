@@ -1,46 +1,28 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { getViewer, requireViewer } from "@/lib/api/viewer"
+import { editPostSchema } from "@/lib/validation/schemas"
+import { deletePost, editPost, getPostDTO } from "@/lib/services/posts"
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await params
-  const uid = session.user.id
-  const post = await prisma.post.findUnique({
-    where: { id },
-    include: {
-      user: { select: { id: true, name: true, username: true, avatar: true } },
-      newsArticle: { select: { id: true, title: true, link: true, source: true, category: true, publishedAt: true } },
-      community: { select: { id: true, slug: true, name: true } },
-      _count: { select: { likes: true, comments: true } },
-      likes: { where: { userId: uid }, select: { userId: true } },
-    },
-  })
-  if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  return NextResponse.json({
-    ...post,
-    images: (() => { try { return JSON.parse(post.images) } catch { return [] } })(),
-    likesCount: post._count.likes,
-    commentsCount: post._count.comments,
-    isLiked: post.likes.length > 0,
-    likes: undefined,
-    _count: undefined,
-  })
-}
+type Ctx = { params: Promise<{ id: string }> }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id } = await params
-  const post = await prisma.post.findUnique({ where: { id } })
-  if (!post || post.userId !== session.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  await prisma.post.delete({ where: { id } })
-  return NextResponse.json({ success: true })
-}
+export const GET = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await getViewer()
+  return ok(await getPostDTO(viewer?.id ?? null, id))
+})
+
+// Owner + revision check. Only caption / alt text (and visibility with explicit confirmation).
+export const PATCH = route(async (request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await requireViewer()
+  const input = await parseBody(request, editPostSchema)
+  await editPost(viewer, id, input)
+  return ok(await getPostDTO(viewer.id, id))
+})
+
+export const DELETE = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await requireViewer()
+  await deletePost(viewer, id)
+  return ok({ id, deleted: true })
+})

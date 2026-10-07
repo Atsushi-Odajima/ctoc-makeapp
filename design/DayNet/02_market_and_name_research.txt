@@ -1,0 +1,85 @@
+DayNet / 市場・名称・事業検証
+調査日：2026-10-07（Webを実際に参照）
+商品分類：写真・短い動画・日記・趣味コミュニティを備えたモバイルSNS。
+対象：成果や拡散だけでなく日常の交流を続けたい人。匿名表示名可。
+この製品は既存アプリの改修であり、新規ジャンル選定や買い切り商品の販売判断ではない。
+
+近接競合1：mixi2
+URL：https://apps.apple.com/jp/app/mixi2/id6475064197
+公式補足：https://support.mixi.social/support/solutions/articles/154000212308
+価格：日本App Store掲載は無料。課金方式の全容・将来変更は別途確認が必要。
+機能：短文、フォロー、時系列ホーム、コミュニティ、イベント、リアクション。
+長所（確認・解釈）：関係性と集まりを中心にした設計が明確。既存の運営基盤もある。
+短所／不満：2024-12-21掲載レビューには個人投稿がコミュニティ投稿に埋もれるという意見。2024-12-25には発見欄の興味のずれという意見。
+これらは過去の個別レビューであり、2026年の未解決問題・多数派意見とは断定しない。
+入り込む余地（仮説）：写真中心の読み心地と、フォロー中／参加中を分ける制御、プロフィール3項目で小さい仲間の会話を作る。
+
+近接競合2：Instagram
+URL：https://apps.apple.com/jp/app/instagram/id389801252
+価格：無料・アプリ内購入。上位課金の日本向け価格は今回確定せず。
+課金方式：無料利用が入口。今回はアプリ内購入の全品目の価格比較を行っていない。
+機能：写真・動画・Reels・ストーリーズ・DM・反応。
+長所：媒体表現と配信、友人・作り手の既存ネットワーク。ユーザーが操作を学習済み。
+短所／不満：2023-06-28レビューにハッシュタグ検索で時系列の投稿を見たいという意見。2017-10-12レビューには勧められる動画の自動再生への不満。
+古いレビューを現在の仕様や未解決欠陥と読み替えない。
+入り込む余地（仮説）：投稿の上手さを競う雰囲気より、小さな集まりで日記も並ぶ居場所。全機能の代替は目指さない。
+
+近接競合3：BeReal
+URL：https://apps.apple.com/jp/app/bereal/id1459645446
+参考公式：https://bereal.com/
+価格：調査時の日本App Store掲載は無料。広告等の収益構造の全容は未検証。
+機能：ランダムな通知、前後カメラによる日常の共有、友達のフィード、コメント・反応。
+長所：投稿行動のきっかけが強い。飾りすぎない日常という目的が伝わりやすい。
+短所／不満：2022-12-26レビューに撮影のタイミングが夜になることへの言及。古い一例。
+入り込む余地（仮説）：通知時刻に縛られず、写真・動画・文章を自分のペースで投稿し、趣味の人とも会話を続ける。
+
+確認できた事実と仮説の分離
+事実：3社とも無料で始められ、近接機能はすでに存在する。穏やかな交流・日常共有という訴求にも競争がある。
+事実：元ソースにはコミュニティとDMのモデルがあるが、プロフィール必須3項目と本当の動画投稿はない。
+仮説：CinemiXの利用者から小さな初期ネットワークを作れれば、単独新規SNSより開始時の空白を埋めやすい。
+仮説：自慢と弱点を一つずつ示すと話しかけやすい。一方で強制が嫌な人もいるため離脱の検証が必要。
+不確実性：CinemiXの利用者数・活動率・認知は未確認。既存ユーザー数、運営予算、広告単価も未確認。
+「売れる」「広告で黒字になる」「競合がない」とは結論しない。
+
+検証案（提案値、業界ベンチマークではない）
+30〜50人、3〜5コミュニティ、4週間の協力テスト。
+計測イベント：登録開始、必須プロフィール完了、初投稿、他人への返信、7日以内再訪、招待リンク経由登録。
+見るもの：初投稿までの時間、初投稿24時間以内に他人から返信があった割合、週ごとの投稿者・返信者、登録離脱理由。
+継続の仮基準：参加者の半数以上が初週に投稿し、2週目にも3割以上が投稿または返信する。
+未達なら広告を足す前に、会話が成立する集まり・参加導線を修正する。サンプルが小さいので有意性を主張しない。
+収益：今版では広告SDK・有料プランなし。配信・保存・監視費を先に測定する。
+
+名称調査（DayNetへ変更して再調査）
+採用：DayNet。ユーザー指定。読みデイネット。Day＝日常、Net＝ゆるいつながり。
+表記比較：DayNetは2語の境目が分かる。DAYNETは硬く、daynetは一般語のように見えるため不採用。
+主観評価5点：記憶4、発音5、視認4、現代性4、商品接続4、ロゴ化4、混同しにくさ2。
+検索日：2026-10-07。
+一般Web："DayNet" app social network / "DayNet" internet。
+GitHub："DayNet" site:github.com。
+App Store / Google Play："DayNet" site:apps.apple.com OR site:play.google.com。
+日本語関連：DayNet SNS、デイネット SNS等も実装時の公開前チェック対象。
+検索範囲では同名の主要な写真SNSを特定できなかったが、検索結果の不足は未使用の証明ではない。
+一般検索では、海外の通信インフラDayNetと同名使用が確認できた。
+一次資料：https://www.cityofdaytontx.com/Home/Components/RFP/RFP/48/227
+City of Daytonが2025年の募集文書でDayNetという通信サービス名を使用。
+補足：https://www.prnewswire.com/news-releases/ezee-fiber-announces-acquisition-of-daynet-fiber-optic-assets-in-dayton-texas-302682772.html
+2026-02-10の事業者発表にDayNet資産取得の記載。現在の商標権者や利用可否を確定する資料ではない。
+前版のMicrosoft .NETとの近さは小さくなるが、DayNetも唯一無二の語ではない。
+商標DB未調査：商標未確認。ドメイン、SNSハンドル、App Store登録名の空きも未確認。
+指定名で制作を進めた。名称の独占使用・法的安全を保証するものではない。
+SEO表示例：DayNet｜写真・動画・日記のSNS。
+
+今回のデザイン参考
+https://studiodumbar.com/work/amsterdam-sinfonietta-identity
+https://www.pentagram.com/work/serif/
+https://fonts.google.com/specimen/Outfit
+https://fonts.google.com/specimen/BIZ+UDPGothic
+参照点と非採用要素は04_design_direction_report.txtに記載。
+
+技術資料（前版から継承、同日調査）
+https://vercel.com/docs/functions/limitations
+https://cloudinary.com/documentation/client_side_uploading
+https://cloudinary.com/documentation/control_access_to_media
+https://cloudinary.com/documentation/authentication_signatures
+https://nextjs.org/docs/app/guides/progressive-web-apps
+仕様の前提は元ソースのNext/Prisma/NextAuth/Cloudinary。ブランド変更を理由に認証を作り直さない。

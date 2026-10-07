@@ -5,10 +5,23 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "prisma db push && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "ts-node --project tsconfig.seed.json prisma/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "db:migrate": "prisma migrate deploy",
+    "db:backup": "ts-node --project tsconfig.scripts.json scripts/db-backup.ts",
+    "db:copy-sqlite": "ts-node --project tsconfig.scripts.json scripts/copy-sqlite-to-postgres.ts",
+    "db:compare": "ts-node --project tsconfig.scripts.json scripts/db-compare.ts",
+    "db:report-duplicates": "ts-node --project tsconfig.scripts.json scripts/report-duplicate-conversations.ts",
+    "seed:options": "ts-node --project tsconfig.scripts.json scripts/seed-options.ts",
+    "seed:demo": "ts-node --project tsconfig.scripts.json scripts/seed-demo.ts",
+    "media:backfill-legacy": "ts-node --project tsconfig.scripts.json scripts/media-backfill-legacy.ts",
+    "media:migrate-legacy": "ts-node --project tsconfig.scripts.json scripts/media-migrate-legacy.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -32,6 +45,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -40,8 +54,13 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

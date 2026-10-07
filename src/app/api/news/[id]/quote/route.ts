@@ -1,27 +1,29 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { z } from "zod"
 import { prisma } from "@/lib/db"
+import { ok, parseBody, route } from "@/lib/api/http"
+import { Errors } from "@/lib/api/errors"
+import { requireCompleteProfile } from "@/lib/api/viewer"
 import { getNewsMetric } from "@/lib/news"
+import { enforce } from "@/lib/rate-limit"
+import { LIMITS, plainText } from "@/lib/validation/text"
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+type Ctx = { params: Promise<{ id: string }> }
+const schema = z.object({ caption: plainText(LIMITS.caption, { min: 1 }) }).strict()
 
-  const { id } = await params
-  const body = await request.json().catch(() => ({}))
-  const caption = typeof body.caption === "string" ? body.caption.trim() : ""
-  if (!caption || caption.length > 500) return NextResponse.json({ error: "投稿文は1〜500文字で入力してください" }, { status: 400 })
-
+// A quote post is a normal personal NOTE post linked to the article (same visibility rules).
+export const POST = route(async (request: Request, ctx: Ctx) => {
+  const viewer = await requireCompleteProfile()
+  const { id } = await ctx.params
+  const { caption } = await parseBody(request, schema)
   const article = await prisma.newsArticle.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 })
-
+  if (!article) throw Errors.notFound()
+  await enforce("postCreate", viewer.id)
   const post = await prisma.post.create({
-    data: { userId: session.user.id, caption, images: "[]", newsArticleId: id },
+    data: {
+      userId: viewer.id, caption, newsArticleId: id, kind: "NOTE",
+      visibility: viewer.isPrivate ? "FOLLOWERS" : "PUBLIC", status: "PUBLISHED", publishedAt: new Date(),
+    },
     select: { id: true },
   })
-  const metrics = await getNewsMetric(id)
-  return NextResponse.json({ postId: post.id, metrics }, { status: 201 })
-}
+  return ok({ postId: post.id, metrics: await getNewsMetric(id) }, { status: 201 })
+})

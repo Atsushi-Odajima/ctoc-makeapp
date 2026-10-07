@@ -1,0 +1,431 @@
+-- DayNet baseline (= Harenowa schema as of 2026-10-07, PostgreSQL).
+-- Written to be idempotent and additive-only so it can be applied to:
+--   (a) an empty database, or
+--   (b) an existing Neon DB that was created by `prisma db push` (2026-06 schema),
+-- without dropping or rewriting any existing row. See MIGRATION_RUNBOOK.txt.
+
+CREATE SCHEMA IF NOT EXISTS "public";
+CREATE TABLE IF NOT EXISTS "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "bio" TEXT,
+    "avatar" TEXT,
+    "website" TEXT,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
+    "onboardingDone" BOOLEAN NOT NULL DEFAULT false,
+    "lastActive" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "email" TEXT NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "password" TEXT NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "name" TEXT NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "username" TEXT NOT NULL;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "bio" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatar" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "website" TEXT;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "isPrivate" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "onboardingDone" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastActive" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "Post" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "caption" TEXT,
+    "images" TEXT NOT NULL DEFAULT '[]',
+    "location" TEXT,
+    "newsArticleId" TEXT,
+    "communityId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "caption" TEXT;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "images" TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "location" TEXT;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "newsArticleId" TEXT;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "communityId" TEXT;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Post" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "Like" (
+    "userId" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Like_pkey" PRIMARY KEY ("userId","postId")
+);
+ALTER TABLE "Like" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Like" ADD COLUMN IF NOT EXISTS "postId" TEXT NOT NULL;
+ALTER TABLE "Like" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Comment" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "parentId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "postId" TEXT NOT NULL;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "content" TEXT NOT NULL;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "parentId" TEXT;
+ALTER TABLE "Comment" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Follow" (
+    "followerId" TEXT NOT NULL,
+    "followingId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Follow_pkey" PRIMARY KEY ("followerId","followingId")
+);
+ALTER TABLE "Follow" ADD COLUMN IF NOT EXISTS "followerId" TEXT NOT NULL;
+ALTER TABLE "Follow" ADD COLUMN IF NOT EXISTS "followingId" TEXT NOT NULL;
+ALTER TABLE "Follow" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Story" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "imageUrl" TEXT NOT NULL,
+    "caption" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Story_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "imageUrl" TEXT NOT NULL;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "caption" TEXT;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "expiresAt" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "Story" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Footprint" (
+    "id" TEXT NOT NULL,
+    "visitorId" TEXT NOT NULL,
+    "visitedId" TEXT NOT NULL,
+    "visitedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Footprint_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Footprint" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Footprint" ADD COLUMN IF NOT EXISTS "visitorId" TEXT NOT NULL;
+ALTER TABLE "Footprint" ADD COLUMN IF NOT EXISTS "visitedId" TEXT NOT NULL;
+ALTER TABLE "Footprint" ADD COLUMN IF NOT EXISTS "visitedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "fromUserId" TEXT,
+    "postId" TEXT,
+    "content" TEXT,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "fromUserId" TEXT;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "postId" TEXT;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "content" TEXT;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "read" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Conversation" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "ConversationParticipant" (
+    "conversationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "ConversationParticipant_pkey" PRIMARY KEY ("conversationId","userId")
+);
+ALTER TABLE "ConversationParticipant" ADD COLUMN IF NOT EXISTS "conversationId" TEXT NOT NULL;
+ALTER TABLE "ConversationParticipant" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "DirectMessage" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DirectMessage_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "conversationId" TEXT NOT NULL;
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "senderId" TEXT NOT NULL;
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "content" TEXT NOT NULL;
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "readAt" TIMESTAMP(3);
+ALTER TABLE "DirectMessage" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "NewsArticle" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "link" TEXT NOT NULL,
+    "summary" TEXT,
+    "category" TEXT NOT NULL,
+    "feedKey" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "publishedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NewsArticle_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "title" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "link" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "summary" TEXT;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "category" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "feedKey" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "publishedAt" TIMESTAMP(3) NOT NULL;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "NewsArticle" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "NewsComment" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NewsComment_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "articleId" TEXT NOT NULL;
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "content" TEXT NOT NULL;
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "NewsComment" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "NewsActivity" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "visitorKey" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "bucket" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "NewsActivity_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "articleId" TEXT NOT NULL;
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "visitorKey" TEXT NOT NULL;
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "kind" TEXT NOT NULL;
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "bucket" TEXT NOT NULL;
+ALTER TABLE "NewsActivity" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Community" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "coverImage" TEXT,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
+    "ownerId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Community_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "slug" TEXT NOT NULL;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "name" TEXT NOT NULL;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "description" TEXT NOT NULL;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "category" TEXT NOT NULL;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "coverImage" TEXT;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "isPrivate" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "ownerId" TEXT;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "Community" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "CommunityMember" (
+    "communityId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'member',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommunityMember_pkey" PRIMARY KEY ("communityId","userId")
+);
+ALTER TABLE "CommunityMember" ADD COLUMN IF NOT EXISTS "communityId" TEXT NOT NULL;
+ALTER TABLE "CommunityMember" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "CommunityMember" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'member';
+ALTER TABLE "CommunityMember" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS "Account" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "provider" TEXT NOT NULL,
+    "providerAccountId" TEXT NOT NULL,
+    "refresh_token" TEXT,
+    "access_token" TEXT,
+    "expires_at" INTEGER,
+    "token_type" TEXT,
+    "scope" TEXT,
+    "id_token" TEXT,
+    "session_state" TEXT,
+
+    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "provider" TEXT NOT NULL;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "providerAccountId" TEXT NOT NULL;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "refresh_token" TEXT;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "access_token" TEXT;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "expires_at" INTEGER;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "token_type" TEXT;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "scope" TEXT;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "id_token" TEXT;
+ALTER TABLE "Account" ADD COLUMN IF NOT EXISTS "session_state" TEXT;
+
+CREATE TABLE IF NOT EXISTS "Session" (
+    "id" TEXT NOT NULL,
+    "sessionToken" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+);
+ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "id" TEXT NOT NULL;
+ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "sessionToken" TEXT NOT NULL;
+ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "userId" TEXT NOT NULL;
+ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "expires" TIMESTAMP(3) NOT NULL;
+
+CREATE TABLE IF NOT EXISTS "VerificationToken" (
+    "identifier" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expires" TIMESTAMP(3) NOT NULL
+);
+ALTER TABLE "VerificationToken" ADD COLUMN IF NOT EXISTS "identifier" TEXT NOT NULL;
+ALTER TABLE "VerificationToken" ADD COLUMN IF NOT EXISTS "token" TEXT NOT NULL;
+ALTER TABLE "VerificationToken" ADD COLUMN IF NOT EXISTS "expires" TIMESTAMP(3) NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "User_username_key" ON "User"("username");
+CREATE INDEX IF NOT EXISTS "Post_newsArticleId_createdAt_idx" ON "Post"("newsArticleId", "createdAt");
+CREATE INDEX IF NOT EXISTS "Post_communityId_createdAt_idx" ON "Post"("communityId", "createdAt");
+CREATE INDEX IF NOT EXISTS "NewsArticle_publishedAt_idx" ON "NewsArticle"("publishedAt");
+CREATE INDEX IF NOT EXISTS "NewsArticle_feedKey_publishedAt_idx" ON "NewsArticle"("feedKey", "publishedAt");
+CREATE INDEX IF NOT EXISTS "NewsComment_articleId_createdAt_idx" ON "NewsComment"("articleId", "createdAt");
+CREATE INDEX IF NOT EXISTS "NewsComment_userId_createdAt_idx" ON "NewsComment"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "NewsActivity_articleId_kind_createdAt_idx" ON "NewsActivity"("articleId", "kind", "createdAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "NewsActivity_articleId_visitorKey_kind_bucket_key" ON "NewsActivity"("articleId", "visitorKey", "kind", "bucket");
+CREATE UNIQUE INDEX IF NOT EXISTS "Community_slug_key" ON "Community"("slug");
+CREATE INDEX IF NOT EXISTS "Community_category_createdAt_idx" ON "Community"("category", "createdAt");
+CREATE INDEX IF NOT EXISTS "CommunityMember_userId_createdAt_idx" ON "CommunityMember"("userId", "createdAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Session_sessionToken_key" ON "Session"("sessionToken");
+CREATE UNIQUE INDEX IF NOT EXISTS "VerificationToken_token_key" ON "VerificationToken"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
+DO $$ BEGIN
+  ALTER TABLE "Post" ADD CONSTRAINT "Post_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Post" ADD CONSTRAINT "Post_newsArticleId_fkey" FOREIGN KEY ("newsArticleId") REFERENCES "NewsArticle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Post" ADD CONSTRAINT "Post_communityId_fkey" FOREIGN KEY ("communityId") REFERENCES "Community"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Like" ADD CONSTRAINT "Like_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Like" ADD CONSTRAINT "Like_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Comment" ADD CONSTRAINT "Comment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Follow" ADD CONSTRAINT "Follow_followerId_fkey" FOREIGN KEY ("followerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Follow" ADD CONSTRAINT "Follow_followingId_fkey" FOREIGN KEY ("followingId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Story" ADD CONSTRAINT "Story_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Footprint" ADD CONSTRAINT "Footprint_visitorId_fkey" FOREIGN KEY ("visitorId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Footprint" ADD CONSTRAINT "Footprint_visitedId_fkey" FOREIGN KEY ("visitedId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "ConversationParticipant" ADD CONSTRAINT "ConversationParticipant_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "ConversationParticipant" ADD CONSTRAINT "ConversationParticipant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "DirectMessage" ADD CONSTRAINT "DirectMessage_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "DirectMessage" ADD CONSTRAINT "DirectMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "NewsComment" ADD CONSTRAINT "NewsComment_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "NewsArticle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "NewsComment" ADD CONSTRAINT "NewsComment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "NewsActivity" ADD CONSTRAINT "NewsActivity_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "NewsArticle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Community" ADD CONSTRAINT "Community_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "CommunityMember" ADD CONSTRAINT "CommunityMember_communityId_fkey" FOREIGN KEY ("communityId") REFERENCES "Community"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "CommunityMember" ADD CONSTRAINT "CommunityMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

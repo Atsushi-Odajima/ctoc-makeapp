@@ -1,0 +1,169 @@
+{
+  "checkedAt": "2026-10-07",
+  "kind": "design-preview-only",
+  "rows": [
+    {
+      "screen": "feed",
+      "width": 320,
+      "scrollWidth": 320,
+      "hash": "#feed",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "communities",
+      "width": 320,
+      "scrollWidth": 320,
+      "hash": "#communities",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "create",
+      "width": 320,
+      "scrollWidth": 320,
+      "hash": "#create",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "messages",
+      "width": 320,
+      "scrollWidth": 320,
+      "hash": "#messages",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "profile",
+      "width": 320,
+      "scrollWidth": 320,
+      "hash": "#profile",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "feed",
+      "width": 390,
+      "scrollWidth": 390,
+      "hash": "#feed",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "communities",
+      "width": 390,
+      "scrollWidth": 390,
+      "hash": "#communities",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "create",
+      "width": 390,
+      "scrollWidth": 390,
+      "hash": "#create",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "messages",
+      "width": 390,
+      "scrollWidth": 390,
+      "hash": "#messages",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "profile",
+      "width": 390,
+      "scrollWidth": 390,
+      "hash": "#profile",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "feed",
+      "width": 768,
+      "scrollWidth": 768,
+      "hash": "#feed",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "communities",
+      "width": 768,
+      "scrollWidth": 768,
+      "hash": "#communities",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "create",
+      "width": 768,
+      "scrollWidth": 768,
+      "hash": "#create",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "messages",
+      "width": 768,
+      "scrollWidth": 768,
+      "hash": "#messages",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "profile",
+      "width": 768,
+      "scrollWidth": 768,
+      "hash": "#profile",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "feed",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "hash": "#feed",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "communities",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "hash": "#communities",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "create",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "hash": "#create",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "messages",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "hash": "#messages",
+      "logoAlt": "DayNet",
+      "ok": true
+    },
+    {
+      "screen": "profile",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "hash": "#profile",
+      "logoAlt": "DayNet",
+      "ok": true
+    }
+  ],
+  "jsErrors": [],
+  "reactionDemoToggle": true,
+  "requiredProfileLabels": true
+}

@@ -35,3 +35,10 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# DayNet
+.data/
+/test-results/
+/playwright-report/
+/backups/
+*.dump

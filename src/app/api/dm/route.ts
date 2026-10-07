@@ -1,39 +1,21 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/db"
+import { z } from "zod"
+import { ok, parseBody, parseQuery, route } from "@/lib/api/http"
+import { requireCompleteProfile, requireViewer } from "@/lib/api/viewer"
+import { dmStartSchema } from "@/lib/validation/schemas"
+import { listConversations, startConversation } from "@/lib/services/dm"
 
-export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const uid = session.user.id
-  const convs = await prisma.conversation.findMany({
-    where: { participants: { some: { userId: uid } } },
-    include: {
-      participants: { include: { user: { select: { id: true, name: true, username: true, avatar: true } } } },
-      messages: { orderBy: { createdAt: "desc" }, take: 1 },
-    },
-    orderBy: { updatedAt: "desc" },
-  })
-  return NextResponse.json(convs.map(c => ({
-    id: c.id,
-    createdAt: c.createdAt,
-    updatedAt: c.updatedAt,
-    otherUser: c.participants.find(p => p.userId !== uid)?.user,
-    lastMessage: c.messages[0] || null,
-  })))
-}
+const query = z.object({ box: z.enum(["inbox", "requests"]).optional().default("inbox") })
 
-export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { targetUserId } = await req.json()
-  const uid = session.user.id
-  const existing = await prisma.conversation.findFirst({
-    where: { participants: { every: { userId: { in: [uid, targetUserId] } } } },
-  })
-  if (existing) return NextResponse.json({ id: existing.id })
-  const conv = await prisma.conversation.create({
-    data: { participants: { create: [{ userId: uid }, { userId: targetUserId }] } },
-  })
-  return NextResponse.json({ id: conv.id })
-}
+export const GET = route(async (request: Request) => {
+  const viewer = await requireViewer()
+  const { box } = parseQuery(request.url, query)
+  return ok(await listConversations(viewer, box))
+})
+
+// Find-or-create by the unique pairKey (no participants.every scan).
+export const POST = route(async (request: Request) => {
+  const viewer = await requireCompleteProfile()
+  const { targetUserId } = await parseBody(request, dmStartSchema)
+  const result = await startConversation(viewer, targetUserId)
+  return ok(result, { status: result.created ? 201 : 200 })
+})

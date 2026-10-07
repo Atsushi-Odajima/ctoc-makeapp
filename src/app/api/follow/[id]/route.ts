@@ -1,24 +1,26 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { ok, route } from "@/lib/api/http"
+import { requireViewer } from "@/lib/api/viewer"
 import { prisma } from "@/lib/db"
+import { follow, unfollow } from "@/lib/services/follows"
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  const { id: targetId } = await params
-  const uid = session.user.id
-  if (uid === targetId) return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 })
+type Ctx = { params: Promise<{ id: string }> }
 
-  const existing = await prisma.follow.findUnique({ where: { followerId_followingId: { followerId: uid, followingId: targetId } } })
-  if (existing) {
-    await prisma.follow.delete({ where: { followerId_followingId: { followerId: uid, followingId: targetId } } })
-    return NextResponse.json({ following: false })
-  } else {
-    await prisma.follow.create({ data: { followerId: uid, followingId: targetId } })
-    try { await prisma.notification.create({ data: { userId: targetId, type: "follow", fromUserId: uid, content: "あなたをフォローしました" } }) } catch { /* skip */ }
-    return NextResponse.json({ following: true })
-  }
-}
+// PUT = follow (or request to follow a private account), DELETE = unfollow / cancel request.
+export const PUT = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  return ok(await follow(await requireViewer(), id))
+})
+
+export const DELETE = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  return ok(await unfollow(await requireViewer(), id))
+})
+
+/** DEPRECATED toggle kept for old clients until 2027-01-31. */
+export const POST = route(async (_request: Request, ctx: Ctx) => {
+  const { id } = await ctx.params
+  const viewer = await requireViewer()
+  const existing = await prisma.follow.findUnique({ where: { followerId_followingId: { followerId: viewer.id, followingId: id } } })
+  const result = existing ? await unfollow(viewer, id) : await follow(viewer, id)
+  return ok({ ...result, following: result.status !== "NONE" }, { headers: { Deprecation: "true", Sunset: "Sun, 31 Jan 2027 00:00:00 GMT" } })
+})
