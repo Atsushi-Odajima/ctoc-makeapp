@@ -8,8 +8,8 @@ export async function GET(
 ) {
   const { id } = await params
   const article = await prisma.newsArticle.findUnique({ where: { id } })
-  if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!article) return NextResponse.json({ error: { code: "NOT_FOUND", message: "見つかりません" } }, { status: 404 })
 
   const metrics = await getNewsMetric(id)
-  return NextResponse.json({ ...article, ...metrics })
+  return NextResponse.json({ data: { ...article, ...metrics } })
 }

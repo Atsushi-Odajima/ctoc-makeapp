@@ -7,7 +7,8 @@ import { decodeCursor, encodeCursor, pageSize } from "@/lib/api/pagination"
 import { ApiError } from "@/lib/api/errors"
 import { requestHash, stableStringify } from "@/lib/idempotency"
 
-function input(over: Partial<PostAccessInput> & { post?: Partial<PostAccessInput["post"]>; viewer?: Partial<PostAccessInput["viewer"]> } = {}): PostAccessInput {
+type Over = { viewerId?: string | null; author?: PostAccessInput["author"]; community?: PostAccessInput["community"]; post?: Partial<PostAccessInput["post"]>; viewer?: Partial<PostAccessInput["viewer"]> }
+function input(over: Over = {}): PostAccessInput {
   return {
     viewerId: over.viewerId === undefined ? "viewer" : over.viewerId,
     post: { userId: "author", visibility: "PUBLIC", status: "PUBLISHED", communityId: null, deletedAt: null, hiddenAt: null, ...over.post },

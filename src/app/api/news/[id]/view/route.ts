@@ -12,10 +12,10 @@ export async function POST(
   const body = await request.json().catch(() => ({}))
   const anonymousKey = typeof body.visitorKey === "string" ? body.visitorKey.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) : ""
   const visitorKey = session?.user?.id ? `user-${session.user.id}` : anonymousKey
-  if (!visitorKey) return NextResponse.json({ error: "Visitor key required" }, { status: 400 })
+  if (!visitorKey) return NextResponse.json({ error: { code: "INVALID_INPUT", message: "visitorKey required" } }, { status: 422 })
 
   const article = await prisma.newsArticle.findUnique({ where: { id }, select: { id: true } })
-  if (!article) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!article) return NextResponse.json({ error: { code: "NOT_FOUND", message: "見つかりません" } }, { status: 404 })
 
   const bucket = new Date().toISOString().slice(0, 13)
   await prisma.newsActivity.upsert({
@@ -24,5 +24,5 @@ export async function POST(
     update: {},
   })
 
-  return NextResponse.json(await getNewsMetric(id))
+  return NextResponse.json({ data: await getNewsMetric(id) })
 }

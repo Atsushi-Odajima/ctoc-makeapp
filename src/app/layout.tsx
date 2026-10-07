@@ -1,62 +1,51 @@
 import type { Metadata, Viewport } from "next"
-import { Noto_Sans_JP } from "next/font/google"
 import "./globals.css"
-import { Toaster } from "react-hot-toast"
-import { SessionProvider } from "next-auth/react"
-
-const notoSansJP = Noto_Sans_JP({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "900"],
-  display: "swap",
-  variable: "--font-noto",
-})
+import { Providers } from "@/components/layout/Providers"
+import { APP_DESCRIPTION, APP_DISPLAY_NAME, THEME_COLOR } from "@/config/brand"
 
 export const metadata: Metadata = {
-  title: "ハレノワ",
-  description: "写真、日記、コミュニティ、足あとでゆるくつながる日本向けSNS",
-  manifest: "/manifest.json",
+  metadataBase: process.env.APP_ORIGIN ? new URL(process.env.APP_ORIGIN) : undefined,
+  title: { default: APP_DISPLAY_NAME, template: `%s | ${APP_DISPLAY_NAME}` },
+  description: APP_DESCRIPTION,
+  applicationName: APP_DISPLAY_NAME,
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/favicon_32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180" },
-      { url: "/icon-120.png", sizes: "120x120" },
-      { url: "/icon-152.png", sizes: "152x152" },
-      { url: "/icon-167.png", sizes: "167x167" },
-      { url: "/apple-touch-icon-180.png", sizes: "180x180" },
-    ],
+    apple: [{ url: "/brand/apple_touch_icon_180.png", sizes: "180x180" }],
   },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "ハレノワ",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: APP_DISPLAY_NAME },
+  openGraph: {
+    siteName: APP_DISPLAY_NAME,
+    title: APP_DISPLAY_NAME,
+    description: APP_DESCRIPTION,
+    images: [{ url: "/brand/og.png", width: 1200, height: 630, alt: APP_DISPLAY_NAME }],
+    locale: "ja_JP",
+    type: "website",
   },
+  twitter: { card: "summary_large_image", title: APP_DISPLAY_NAME, description: APP_DESCRIPTION, images: ["/brand/og.png"] },
+  formatDetection: { telephone: false },
 }
 
+// No maximum-scale / user-scalable lock: pinch zoom and 200% text must keep working.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0B1F3A",
+  themeColor: THEME_COLOR,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html lang="ja">
+      <head>
+        {/* Fonts are self-hosted (OFL); no external font CDN. */}
+        <link rel="stylesheet" href="/fonts/daynet-fonts.css" />
+        <link rel="preload" href="/fonts/BIZUDPGothic-Regular-base.woff2" as="font" type="font/woff2" crossOrigin="" />
+      </head>
       <body>
-        <SessionProvider>
-          {children}
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 3000,
-              style: { borderRadius: "6px", background: "#0B1F3A", color: "#fff" },
-            }}
-          />
-        </SessionProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )

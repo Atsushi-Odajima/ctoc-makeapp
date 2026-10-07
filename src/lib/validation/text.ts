@@ -21,16 +21,13 @@ const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
 
 export function graphemeLength(value: string): number {
   if (!segmenter) return Array.from(value).length
-  let count = 0
-  for (const _ of segmenter.segment(value)) count++
-  return count
+  return Array.from(segmenter.segment(value)).length
 }
 
 // Strip ASCII/C1 control characters except tab and newline; normalise CRLF. Plain text only.
 export function cleanPlainText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, "")
 }
 

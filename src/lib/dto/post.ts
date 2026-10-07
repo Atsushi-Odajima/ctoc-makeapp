@@ -54,6 +54,7 @@ export interface PostDTO {
   counts: { likes: number; empathies: number; comments: number }
   viewer: { liked: boolean; empathized: boolean; bookmarked: boolean; isOwner: boolean }
   hidden?: boolean
+  latestComment?: { authorName: string; authorUsername: string; content: string } | null
 }
 
 export function toPostDTO(row: PostRow, viewerId: string | null, provider: MediaProvider | null): PostDTO {

@@ -111,7 +111,7 @@ describe("Cloudinary adapter (fixture credentials, no network)", () => {
     const exp = Number(/exp=(\d+)/.exec(token)![1])
     expect(exp - Date.now() / 1000).toBeLessThanOrEqual(121)
     const hmac = /hmac=([0-9a-f]+)/.exec(token)![1]
-    const recompute = (path: string) => cloudinary.utils.generate_auth_token({ key: env.CLOUDINARY_AUTH_TOKEN_KEY, expiration: exp, url: path })
+    const recompute = (path: string) => cloudinary.utils.generate_auth_token({ key: env.CLOUDINARY_AUTH_TOKEN_KEY, expiration: exp, url: path } as unknown as Parameters<typeof cloudinary.utils.generate_auth_token>[0])
     expect(recompute(url.pathname)).toContain(hmac)
     expect(recompute(url.pathname.replace("w_2048", "w_4096"))).not.toContain(hmac)
     const video = p.issueDelivery({ mediaId: "m2", publicId: "daynet/media/u1/m2", resourceType: "video", version: "3", kind: "VIDEO" }, "display")

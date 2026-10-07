@@ -1,7 +1,13 @@
+import Link from "next/link"
+import { DayNetWordmark } from "@/components/brand/DayNetWordmark"
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f6f8] p-4">
-      <div className="w-full max-w-sm">{children}</div>
-    </div>
+    <main className="mx-auto min-h-dvh max-w-[440px] gutter" style={{ paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
+      <header className="flex h-[72px] items-center">
+        <Link href="/" aria-label="DayNetのホーム"><DayNetWordmark width={165} decorative /></Link>
+      </header>
+      {children}
+    </main>
   )
 }

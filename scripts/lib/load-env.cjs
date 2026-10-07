@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Single place that decides which env files are read by Prisma CLI, seed and tool scripts.
 // Order (first wins, never overrides variables already set in the shell/CI):
 //   .env.local  ->  .env

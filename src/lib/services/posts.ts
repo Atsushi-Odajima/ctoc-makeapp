@@ -8,6 +8,7 @@ import { deliveryProvider } from "@/lib/media/delivery"
 import { MEDIA_RULES } from "@/lib/media/rules"
 import { feedWhere, findViewablePostId, visiblePostWhere, type FeedTab } from "@/lib/policies/posts"
 import { getCommunityAccess } from "@/lib/policies/communities"
+import { notBlockedUserWhere } from "@/lib/policies/relationships"
 import { enforce } from "@/lib/rate-limit"
 import { requestHash, withIdempotency } from "@/lib/idempotency"
 import { graphemeLength } from "@/lib/validation/text"
@@ -29,7 +30,31 @@ export async function listPosts(
   })
   const provider = await deliveryProvider()
   const page = paginate(rows, opts.limit, row => row.publishedAt ?? row.createdAt)
-  return { items: page.items.map(row => toPostDTO(row, viewerId, provider)), nextCursor: page.nextCursor }
+  const excerpts = await latestComments(viewerId, page.items.map(r => r.id))
+  return {
+    items: page.items.map(row => ({ ...toPostDTO(row, viewerId, provider), latestComment: excerpts.get(row.id) ?? null })),
+    nextCursor: page.nextCursor,
+  }
+}
+
+/** One short reply excerpt per post for list views (blocked/suspended authors excluded). */
+async function latestComments(viewerId: string | null, postIds: string[]) {
+  const out = new Map<string, { authorName: string; authorUsername: string; content: string }>()
+  if (!postIds.length) return out
+  const rows = await prisma.comment.findMany({
+    where: {
+      postId: { in: postIds },
+      parentId: null,
+      deletedAt: null,
+      hiddenAt: null,
+      user: notBlockedUserWhere(viewerId),
+    },
+    orderBy: [{ postId: "asc" }, { createdAt: "desc" }],
+    distinct: ["postId"],
+    select: { postId: true, content: true, user: { select: { name: true, username: true } } },
+  })
+  for (const r of rows) out.set(r.postId, { authorName: r.user.name, authorUsername: r.user.username, content: r.content.slice(0, 80) })
+  return out
 }
 
 export function listFeed(viewerId: string | null, tab: FeedTab, opts: { cursor?: string | null; limit: number }) {

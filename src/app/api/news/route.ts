@@ -154,19 +154,19 @@ export async function GET() {
       ...(metrics.get(item.id) || { comments: 0, quotes: 0, views: 0, heat: 0, velocity: 0 }),
     })).sort((a, b) => b.heat - a.heat || b.velocity - a.velocity || a.rank - b.rank)
 
-    return NextResponse.json({
+    return NextResponse.json({ data: {
       provider: "Yahoo!ニュース RSS",
       providerUrl: "https://news.yahoo.co.jp/rss/",
       fetchedAt: new Date().toISOString(),
       items: enriched,
-    })
+    } })
   } catch (error) {
-    console.error("News persistence failed", error)
-    return NextResponse.json({
+    console.error("News persistence failed", error instanceof Error ? error.message : "unknown")
+    return NextResponse.json({ data: {
       provider: "Yahoo!ニュース RSS",
       providerUrl: "https://news.yahoo.co.jp/rss/",
       fetchedAt: new Date().toISOString(),
       items: items.map(item => ({ ...item, comments: 0, quotes: 0, views: 0, heat: 0, velocity: 0 })),
-    })
+    } })
   }
 }
