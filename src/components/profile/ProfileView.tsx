@@ -65,9 +65,9 @@ export function ProfileView({ username, self, initialTab }: { username: string; 
       </div>
       <div className="gutter">
         <dl className="mx-1 mb-[15px] mt-[18px] flex justify-between text-[10px]">
-          <div><dd className="t-stat">{formatCount(user.counts.posts)}</dd><dt>投稿</dt></div>
-          <div><dd className="t-stat">{formatCount(user.counts.following)}</dd><dt>フォロー</dt></div>
-          <div><dd className="t-stat">{formatCount(user.counts.followers)}</dd><dt>フォロワー</dt></div>
+          <div className="flex flex-col-reverse"><dt>投稿</dt><dd className="t-stat">{formatCount(user.counts.posts)}</dd></div>
+          <div className="flex flex-col-reverse"><dt>フォロー</dt><dd className="t-stat">{formatCount(user.counts.following)}</dd></div>
+          <div className="flex flex-col-reverse"><dt>フォロワー</dt><dd className="t-stat">{formatCount(user.counts.followers)}</dd></div>
         </dl>
         {rel.isSelf ? <SelfActions user={user} /> : <OtherActions user={user} onChange={load} />}
 

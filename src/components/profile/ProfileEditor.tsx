@@ -95,11 +95,11 @@ export function ProfileEditor() {
 
       <Field label="表示名（匿名でOK・30文字まで）" error={errors.name}>
         <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} aria-invalid={!!errors.name} autoComplete="nickname" />
-        <span className="field-hint block text-right">{graphemeCount(form.name)} / 30</span>
+        <span aria-hidden="true" className="field-hint block text-right">{graphemeCount(form.name)} / 30</span>
       </Field>
       <Field label="自己紹介（160文字まで）" error={errors.bio}>
         <textarea className="textarea" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} aria-invalid={!!errors.bio} />
-        <span className="field-hint block text-right">{graphemeCount(form.bio)} / 160</span>
+        <span aria-hidden="true" className="field-hint block text-right">{graphemeCount(form.bio)} / 160</span>
       </Field>
       <Field label="ウェブサイト（http:// または https://）" error={errors.website}>
         <input className="input" type="url" inputMode="url" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} aria-invalid={!!errors.website} placeholder="https://" />

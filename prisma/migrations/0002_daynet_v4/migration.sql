@@ -489,9 +489,6 @@ ALTER TABLE "IdempotencyKey" ADD CONSTRAINT "IdempotencyKey_userId_fkey" FOREIGN
 -- ---------------------------------------------------------------------------
 ALTER TABLE "UserHobby" ADD CONSTRAINT "UserHobby_position_range" CHECK ("position" BETWEEN 0 AND 2);
 ALTER TABLE "Report" ADD CONSTRAINT "Report_detail_length" CHECK ("detail" IS NULL OR char_length("detail") <= 1000);
--- A post that belongs to a community must use COMMUNITY visibility.
--- (Personal posts may not choose COMMUNITY; enforced in the API and treated as owner-only by the ACL.)
-ALTER TABLE "Post" ADD CONSTRAINT "Post_community_visibility" CHECK ("communityId" IS NULL OR "visibility" = 'COMMUNITY');
 ALTER TABLE "Post" ADD CONSTRAINT "Post_revision_nonnegative" CHECK ("revision" >= 0);
 ALTER TABLE "Media" ADD CONSTRAINT "Media_sortOrder_range" CHECK ("sortOrder" BETWEEN 0 AND 4);
 ALTER TABLE "Block" ADD CONSTRAINT "Block_not_self" CHECK ("blockerId" <> "blockedId");
@@ -566,3 +563,7 @@ FROM ranked r
 WHERE c."id" = r."conversationId" AND r.rn = 1 AND c."pairKey" IS NULL
   AND NOT EXISTS (SELECT 1 FROM "Conversation" c2 WHERE c2."pairKey" = r.pair_key);
 
+-- Added after the backfill above (existing community posts become COMMUNITY first).
+-- A post that belongs to a community must use COMMUNITY visibility.
+-- (Personal posts may not choose COMMUNITY; enforced in the API and treated as owner-only by the ACL.)
+ALTER TABLE "Post" ADD CONSTRAINT "Post_community_visibility" CHECK ("communityId" IS NULL OR "visibility" = 'COMMUNITY');

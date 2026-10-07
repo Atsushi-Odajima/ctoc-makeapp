@@ -1,0 +1,77 @@
+DayNet v4 — TEST_RESULTS
+実行日: 2026-10-07   ブランチ: feature/daynet-v4
+実行環境: Linux（クラウドの作業コンテナ）, Node.js v22.22.0, npm 10.9.4, PostgreSQL 16.15（ローカル, 127.0.0.1:5433）,
+          Chromium 141.0.7390.37（Playwright 1.56.1 / chromium-1194）。Windows 11・実iPhone では未実行。
+
+────────────────────────────────────────
+実行したコマンドと結果
+────────────────────────────────────────
+  npm ci                      成功（package-lock.json どおり）
+  npm run lint                成功（exit 0、error 0 / warning 0）
+  npm run typecheck           成功（tsc --noEmit, exit 0）
+  npm test                    成功: Test Files 9 passed, Tests 74 passed（unit 35 / integration 39）
+  npm run vercel-build        成功（prisma generate && next build, 55ページ生成, exit 0）
+  npm run test:e2e            成功: 8 passed（next build → next start :3100, MEDIA_PROVIDER=local）
+  npm audit --omit=dev        12件（critical 4 / high 7 / moderate 1）→ HANDOFF.txt「要対応」
+
+Vitest（tests/unit, tests/integration — 実PostgreSQL、実行ごとに新規DBを作成し終了時に削除）
+   ✓ |unit| tests/unit/policies.test.ts (12 tests)        canViewPost/canMessage/canViewCommunity, Origin, cursor, 冪等ハッシュ
+   ✓ |unit| tests/unit/media.test.ts (10 tests)           MIME偽装の検出, MP4長さ60秒境界, 状態遷移, 120秒トークン,
+                                                          Cloudinary署名・token(変換パス改変でHMAC不一致)・Webhook検証, CSV注入
+   ✓ |unit| tests/unit/validation.test.ts (11 tests)      書記素数（全角/絵文字/結合文字）, 上限, http(s)のみ, 3項目検証
+   ✓ |unit| tests/unit/legacy-url.test.ts (2 tests)       旧公開URLの解析
+   ✓ |integration| tests/integration/p0-security.test.ts (11 tests)
+        AC-F 非参加者のDM送信/閲覧/承認/既読 404・件数不変、pairKey 並行作成で1件
+        AC-G 公開DTOのキー許可リスト（email/password/token/role等なし）、GETに足あと副作用なし
+        AC-C onboardingDone/role/status/email の PATCH は 422、3項目の欠落/2個/4個/重複/種別違い/不明ID は 422、
+             未設定ユーザーは閲覧可・投稿/コメント/DM開始は PROFILE_REQUIRED
+        AC-E 非公開ユーザーの投稿が feed(3タブ)/posts/users/search/home/詳細/コメント/通知/保存/反応から漏れない
+        AC-G ブロックで相互のフォロー削除、反応/保存/返信/フォロー/DM 拒否、既存会話も送信不可
+   ✓ |integration| tests/integration/interactions.test.ts (16 tests)
+        AC-H 10並行PUTで1行・通知1件、いいねと気持ちわかるは独立、DELETE冪等
+        AC-I 45件を 20/20/5 で重複・欠落なし（同一時刻含む）、不正カーソル422、limit上限50、新着件数
+        AC-O 同一Idempotency-Keyは同じ投稿/別内容は409、clientMessageId 3並行で1件/別内容409
+        DMリクエスト（1通制限、承認後に会話）、差分ポーリング、非公開アカウントの申請→承認（並行で1行）、
+        非公開化しても承認済みフォロワー維持、AC-N 非公開コミュニティ（未認証/非会員/申請中は不可→承認後可）、
+        非公開アカウント→公開集まりの確認必須、個人投稿のCOMMUNITY禁止、通知の既読は本人分のみ・ミュート、
+        編集（所有者・revision一致・publishedAt不変・公開範囲拡大の確認）、論理削除、下書きは本人のみ
+   ✓ |integration| tests/integration/media-moderation.test.ts (9 tests)
+        アップロード→サーバー検証→配信（EXIF/GPS除去を確認）→公開前は所有者のみ→ACL外は404→改ざん/期限切れ404、
+        AC-K 他人のmediaId添付拒否・未完了媒体拒否・SVG/HTML/GIF偽装と容量超過拒否、
+        Webhook重複排除・巻き戻し拒否・他人のpublicId拒否、旧公開画像はACL後の短期トークン経由のみ、
+        投稿削除→削除キュー→署名付きCronで削除（署名なしは404）、
+        AC-S 一般ユーザーは運営キュー/操作 404（自分が通報されても）、モデレーターの非表示/復元、監査ログ更新/削除不可、
+        DM通報は参加者のみ、ACL総当たり（SQLフィルタ＝純関数ルール、5ユーザー×全投稿×匿名含む）
+   ✓ |integration| tests/integration/migration-rehearsal.test.ts (2 tests)
+        既存Neon（2026-06 db push製スキーマ）→ 差分提示（DROPなし）→ 0001適用/resolve → 0002 → 旧表の件数・ID一致、
+        バックフィル（publishedAt/PHOTO/legacy Media/pairKey 最古のみ/acceptedAt）、ドリフトなし
+        既存SQLite（2026-10スキーマ, エポックms/ISO日時, 0/1真偽）→ 0001 → コピー → 0002 → 件数・ID一致、
+        role 'owner'→OWNER、空でない宛先へのコピー拒否
+        ※ この試験で「CHECK制約がバックフィル前にあり既存の集まり投稿で 0002 が失敗する」不具合を発見・修正
+   ✓ |integration| tests/integration/ogp.test.ts (1 test)   公開投稿のみメタデータに本文、限定/欠落はブランド名のみ
+
+Playwright（tests/e2e, Chromium, 390×844 基準）
+  ✓ 1 登録 → 必須3項目（スキップ不可）→ 写真投稿（トークンURLで表示, 内部IDを含まない）→ 気持ちわかるの永続
+      → 他アカウントがフォロー・返信 → 通知/フィードの返信抜粋 → 相互フォロー → DM（5秒ポーリングで相手に反映）
+  ✓ 2 非公開アカウント: 投稿は404/鍵表示（3項目は公開）→ フォローリクエスト → 承認 → 閲覧可
+  ✓ 3 ブロック: フォロー解除、相手側はプロフィール表示不可・DM開始不可
+  ✓ 4 投稿削除（確認ダイアログ → 実API → 404, DBは DELETED）
+  ✓ 5 認可失敗: 未ログイン→/login、非参加者の会話URL/POST拒否（件数不変）、他オリジンPOST 403、公開DTO、
+      運営画面 404、非公開コミュニティの本文/API/会員一覧 拒否
+  ✓ 6 横スクロールなし: 390×844 / 320×568 / 768×1024 / 1440×900 / 720×450(=1440×900の200%) × 10画面、
+      長い表示名・絵文字・長文、下ナビの aria-current と 44px 以上のタップ領域
+  ✓ 7 manifest（DayNet, /feed, standalone, #F7F4F5, 192/512）、タイトル、旧名称（ハレノワ/Feeld/mixta/DotNet/R05）なし
+  ✓ 8 Service Worker のキャッシュは /_next/static・/brand・/fonts・offline.html のみ、
+      ログアウト→別アカウントで前ユーザーの下書きが見えない
+
+────────────────────────────────────────
+未実行・未検証（モックの成功を本番検証済みとしない）
+────────────────────────────────────────
+  ・実 Cloudinary（authenticated アップロード、eager 変換、Webhook 実着信、token 付き CDN 配信、
+    トークンなし原本/派生へのアクセス拒否、destroy/invalidate）: 資格情報なし。adapter は固定値のテストのみ。
+  ・実動画の再生（H.264/AAC 変換・poster・再生位置復元）: ローカルに変換環境なし。
+  ・iPhone Safari / ホーム画面追加（safe-area、キーボード、HEIC/縦写真/MOV、60秒・100MB境界、回線切断、取消、共有）。
+  ・Windows 11 上での README 手順の実行。
+  ・本番DB（Neon）への接続・移行・件数比較（RUNBOOK はローカルの fixture でリハーサルのみ）。
+  ・OAuth（Google/Facebook/LINE）でのログイン。
+  ・Vercel Preview/Production へのデプロイと Cron 実行。

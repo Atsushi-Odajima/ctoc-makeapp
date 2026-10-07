@@ -69,8 +69,8 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
       {viewer ? (
         <form onSubmit={submit} className="space-y-2 rounded-[12px] bg-surface p-4">
           <div className="tabs">
-            <button type="button" aria-selected={mode === "comment"} onClick={() => setMode("comment")}>コメント</button>
-            <button type="button" aria-selected={mode === "quote"} onClick={() => setMode("quote")}>引用して投稿</button>
+            <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>コメント</button>
+            <button type="button" aria-pressed={mode === "quote"} onClick={() => setMode("quote")}>引用して投稿</button>
           </div>
           <textarea className="textarea" value={text} onChange={e => setText(e.target.value)} placeholder={mode === "comment" ? "この記事について" : "自分のページに投稿する文章"} />
           <button type="submit" className="btn btn-primary btn-block" disabled={busy || !text.trim()}>{busy ? "送信中…" : "送信"}</button>

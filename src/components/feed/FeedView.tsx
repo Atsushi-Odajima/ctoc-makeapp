@@ -14,6 +14,7 @@ import { api } from "@/lib/client/api"
 import type { PostDTO } from "@/lib/dto/post"
 import { encodeCursorClient } from "@/lib/client/cursor"
 import { CommunityIndex } from "./CommunityIndex"
+import { StoriesRow } from "@/components/stories/StoriesRow"
 
 type Tab = "following" | "communities" | "discover"
 
@@ -62,6 +63,7 @@ export function FeedView({ tab }: { tab: Tab }) {
             <Link href="/create" className="grid h-[44px] w-[44px] place-items-center rounded-[11px] bg-accent text-ink" aria-label="新しい投稿"><Icon name="plus" /></Link>
           </div>
         )}
+        {viewer && tab === "following" && <StoriesRow />}
         <div className="mx-[var(--gutter)]">
           <Tabs
             label="フィードの切り替え"

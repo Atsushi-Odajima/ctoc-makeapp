@@ -1,96 +1,46 @@
 "use client"
-import { useState } from "react"
-import { Plus, X } from "lucide-react"
-import { AnimatePresence, motion } from "framer-motion"
-import { cn, getAvatarUrl } from "@/lib/utils"
+/* eslint-disable @next/next/no-img-element */
 
-interface StoryGroup {
-  user: { id: string; name: string; username: string; avatar: string | null }
-  stories: Array<{ id: string; imageUrl: string; caption?: string | null }>
-}
+import { useEffect, useState } from "react"
+import { Avatar } from "@/components/ui/Avatar"
+import { Dialog } from "@/components/ui/Dialog"
+import { api } from "@/lib/client/api"
+import type { UserSummary } from "@/lib/dto/user"
 
-interface Props {
-  stories: StoryGroup[]
-  currentUser: { name: string; username: string; avatar?: string | null }
-}
+interface Group { user: UserSummary; stories: Array<{ id: string; imageUrl: string; caption: string | null; expiresAt: string }> }
 
-export function StoriesRow({ stories, currentUser }: Props) {
-  const [viewing, setViewing] = useState<StoryGroup | null>(null)
-  const [storyIndex, setStoryIndex] = useState(0)
-
-  function openStory(group: StoryGroup) {
-    setViewing(group)
-    setStoryIndex(0)
-  }
-  function closeStory() {
-    setViewing(null)
-  }
-  function nextStory() {
-    if (viewing && storyIndex < viewing.stories.length - 1) setStoryIndex(i => i + 1)
-    else closeStory()
-  }
-
+// Existing Stories (legacy feature) stay viewable until they expire. No new stories are created
+// in v4, and this row renders nothing when there are none.
+export function StoriesRow() {
+  const [groups, setGroups] = useState<Group[]>([])
+  const [open, setOpen] = useState<{ group: Group; index: number } | null>(null)
+  useEffect(() => { api<Group[]>("/api/stories").then(r => setGroups(r.data)).catch(() => undefined) }, [])
+  if (!groups.length) return null
+  const story = open ? open.group.stories[open.index] : null
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto px-3 py-3 scrollbar-hide">
-        <button className="flex flex-shrink-0 flex-col items-center gap-1.5">
-          <div className="relative">
-            <div className="h-16 w-16 overflow-hidden rounded-full ring-2 ring-[#dfe3e8]">
-              <img src={getAvatarUrl({ avatar: currentUser.avatar, name: currentUser.name })} alt="あなた" className="h-full w-full object-cover" />
-            </div>
-            <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-[#e85d04]">
-              <Plus className="h-3 w-3 text-white" strokeWidth={3} />
+      <ul className="mx-[var(--gutter)] mb-3 flex gap-3 overflow-x-auto pb-1" aria-label="ストーリー（期限つき）">
+        {groups.map(g => (
+          <li key={g.user.id}>
+            <button type="button" className="flex min-w-[64px] flex-col items-center gap-1 text-[10px]" onClick={() => setOpen({ group: g, index: 0 })} aria-label={`${g.user.name}のストーリーを見る`}>
+              <span className="rounded-[14px] border-2 border-accent p-0.5"><Avatar user={g.user} size={44} /></span>
+              <span className="max-w-[64px] truncate">{g.user.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Dialog open={!!open} onClose={() => setOpen(null)} title={open ? `${open.group.user.name}のストーリー ${open.index + 1}/${open.group.stories.length}` : ""} variant="full">
+        {story && (
+          <div className="flex flex-col items-center gap-3">
+            <img src={story.imageUrl} alt={story.caption ?? "ストーリーの画像"} referrerPolicy="no-referrer" className="max-h-[70dvh] w-auto max-w-full rounded-[12px] object-contain" />
+            {story.caption && <p className="t-body">{story.caption}</p>}
+            <div className="flex gap-2">
+              <button type="button" className="btn btn-secondary" disabled={open!.index === 0} onClick={() => setOpen(o => o && { ...o, index: o.index - 1 })}>前へ</button>
+              <button type="button" className="btn btn-secondary" disabled={open!.index >= open!.group.stories.length - 1} onClick={() => setOpen(o => o && { ...o, index: o.index + 1 })}>次へ</button>
             </div>
           </div>
-          <span className="text-xs font-semibold text-slate-500">あなた</span>
-        </button>
-
-        {stories.map(group => (
-          <button key={group.user.id} onClick={() => openStory(group)} className="flex flex-shrink-0 flex-col items-center gap-1.5">
-            <div className="h-16 w-16 rounded-full bg-[#0b1f3a] p-0.5">
-              <div className="h-full w-full rounded-full bg-white p-0.5">
-                <img src={getAvatarUrl(group.user)} alt={group.user.name} className="h-full w-full rounded-full object-cover" />
-              </div>
-            </div>
-            <span className="max-w-[64px] truncate text-xs font-semibold text-slate-700">{group.user.username}</span>
-          </button>
-        ))}
-      </div>
-
-      <AnimatePresence>
-        {viewing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 mx-auto flex max-w-lg items-center justify-center bg-black"
-            onClick={nextStory}
-          >
-            <div className="absolute left-3 right-3 top-3 z-10 flex gap-1">
-              {viewing.stories.map((_, i) => (
-                <div key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30">
-                  <div className={cn("h-full rounded-full bg-white", i < storyIndex ? "w-full" : i === storyIndex ? "animate-story-progress" : "w-0")} />
-                </div>
-              ))}
-            </div>
-            <div className="absolute left-3 right-3 top-8 z-10 flex items-center gap-3">
-              <img src={getAvatarUrl(viewing.user)} alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover" />
-              <div>
-                <span className="text-sm font-bold text-white">{viewing.user.username}</span>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); closeStory() }} className="ml-auto rounded-full bg-white/15 p-1.5 text-white" aria-label="閉じる">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <img src={viewing.stories[storyIndex].imageUrl} alt="" className="h-full w-full object-cover" draggable={false} />
-            {viewing.stories[storyIndex].caption && (
-              <div className="absolute bottom-8 left-4 right-4 rounded-2xl bg-black/35 px-3 py-2 text-center text-sm font-semibold text-white backdrop-blur">
-                {viewing.stories[storyIndex].caption}
-              </div>
-            )}
-          </motion.div>
         )}
-      </AnimatePresence>
+      </Dialog>
     </>
   )
 }

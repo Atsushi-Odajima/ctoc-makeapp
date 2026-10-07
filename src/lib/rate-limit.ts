@@ -33,8 +33,16 @@ export interface RateLimitResult {
   retryAfter: number
 }
 
+// RATE_LIMIT_SCALE multiplies every limit (default 1). Only for automated test environments;
+// never set it in Preview/Production.
+function scaled(limit: number) {
+  const scale = Number(process.env.RATE_LIMIT_SCALE || 1)
+  return Number.isFinite(scale) && scale >= 1 ? Math.floor(limit * scale) : limit
+}
+
 export async function hit(name: LimitName, subject: string): Promise<RateLimitResult> {
-  const { limit, windowSec } = LIMITS[name]
+  const { windowSec } = LIMITS[name]
+  const limit = scaled(LIMITS[name].limit)
   const key = `${name}:${subject}`
   const rows = await prisma.$queryRaw<Array<{ count: number; expiresAt: Date; now: Date }>>`
     INSERT INTO "RateLimitBucket" ("key", "count", "windowStart", "expiresAt")
@@ -58,7 +66,7 @@ export async function enforce(name: LimitName, subject: string): Promise<void> {
 
 /** Peek without counting (used to refuse before doing expensive work). */
 export async function isLimited(name: LimitName, subject: string): Promise<RateLimitResult | null> {
-  const { limit } = LIMITS[name]
+  const limit = scaled(LIMITS[name].limit)
   const bucket = await prisma.rateLimitBucket.findUnique({ where: { key: `${name}:${subject}` } })
   if (!bucket || bucket.expiresAt.getTime() <= Date.now() || bucket.count < limit) return null
   return { allowed: false, count: bucket.count, retryAfter: Math.max(1, Math.ceil((bucket.expiresAt.getTime() - Date.now()) / 1000)) }

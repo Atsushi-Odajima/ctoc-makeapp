@@ -117,7 +117,7 @@ function EditPost({ post, onCancel, onSaved }: { post: PostDTO; onCancel: () => 
       <label className="block">
         <span className="field-label">本文</span>
         <textarea className="textarea" value={caption} onChange={e => setCaption(e.target.value)} />
-        <span className="field-hint block text-right">{graphemeCount(caption)} / 2200</span>
+        <span aria-hidden="true" className="field-hint block text-right">{graphemeCount(caption)} / 2200</span>
       </label>
       {post.media.filter(m => m.kind === "IMAGE").map((m, i) => (
         <label key={m.id} className="block">
@@ -129,8 +129,8 @@ function EditPost({ post, onCancel, onSaved }: { post: PostDTO; onCancel: () => 
         <fieldset>
           <legend className="field-label">公開範囲</legend>
           <div className="tabs">
-            <button type="button" aria-selected={visibility === "PUBLIC"} disabled={viewer?.isPrivate} onClick={() => setVisibility("PUBLIC")}>公開</button>
-            <button type="button" aria-selected={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}>フォロワー</button>
+            <button type="button" aria-pressed={visibility === "PUBLIC"} disabled={viewer?.isPrivate} onClick={() => setVisibility("PUBLIC")}>公開</button>
+            <button type="button" aria-pressed={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}>フォロワー</button>
           </div>
           {expanding && (
             <label className="mt-2 flex items-start gap-2 t-small">

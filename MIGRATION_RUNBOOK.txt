@@ -1,0 +1,134 @@
+DayNet v4 — データベース移行・切替・ロールバック手順
+最終更新: 2026-10-07
+
+この手順は、自動テスト tests/integration/migration-rehearsal.test.ts で
+「(B) 既存Neon（2026-06スキーマ, db push製）」と「(C) 既存SQLite（2026-10スキーマ）」の
+2系統をローカルのPostgreSQL 16でリハーサル済み（件数・ID一致、外部キー整合、バックフィル、ドリフトなし）。
+実際の本番DBに対しては未実施（本番DBへのアクセス権がこの作業環境にないため）。
+
+────────────────────────────────────────
+0. まず「本番データがどこにあるか」を確認する（破壊的操作の前に必須）
+────────────────────────────────────────
+git履歴からの推定（未検証）:
+  ・2026-06-17 コミット 4820869 で provider を postgresql（Neon）にし、vercel-build を
+    `prisma db push && next build` に設定。以後 2026-10-07 の 725eb69 まで Postgres のまま。
+    → Vercel にデプロイされていたなら、本番データは Neon の PostgreSQL に「db push」で作られた
+      2026-06時点のスキーマ（User/Post/Like/Comment/Follow/Story/Footprint/Notification/
+      Conversation/ConversationParticipant/DirectMessage/Account/Session/VerificationToken）で存在する可能性が高い。
+  ・725eb69 で provider を sqlite に戻したが、Vercel の DATABASE_URL が postgres:// のままなら
+    その後のビルドは `prisma db push` で失敗しており、本番は 06月版のまま動いている可能性がある。
+  ・SQLite（prisma/dev.db 等）は .gitignore 対象で、リポジトリには含まれていない。
+
+確認手順（読み取りのみ）:
+  1) Vercel の Project → Settings → Environment Variables で Production の DATABASE_URL を確認
+     （値をチャット等に貼らない）。Deployments で最後に成功した本番ビルドのコミットを確認。
+  2) Neon コンソールで該当プロジェクト/ブランチのテーブル一覧と件数を確認。
+  3) 手元の SQLite ファイルの有無を確認。
+判定:
+  (A) どこにもデータがない           → 手順A
+  (B) Neon(Postgres)にデータがある   → 手順B（「既存の実体を優先」。新DBへ無断で置換しない）
+  (C) SQLiteファイルにだけデータがある → 手順C
+  (B)と(C)の両方にデータがある場合は、どちらが正本かを運営者が決めるまで先に進まない。
+
+────────────────────────────────────────
+手順A: 空のDB（新規 Neon）
+────────────────────────────────────────
+  1) Neon で本番用プロジェクト/ブランチを作り、DATABASE_URL（pooled）と DIRECT_URL（direct）を取得
+  2) 作業端末の環境変数を本番値に一時的に設定し（.env.local を使う場合は作業後に必ず戻す）
+       npx prisma migrate deploy
+       npm run seed:options
+  3) Vercel Production の環境変数を設定してデプロイ
+
+────────────────────────────────────────
+手順B: 既存の Neon（db push 製, _prisma_migrations なし）を維持して移行する
+────────────────────────────────────────
+本番DBは置き換えない。Neon のブランチ機能でリハーサル用コピーを作り、同じ手順を先に流す。
+
+ B-1 リハーサル（本番に触れない）
+  1) Neon で本番ブランチから「rehearsal」ブランチを作成（コピーオンライト）。
+  2) 以降の DIRECT_URL / DATABASE_URL を rehearsal ブランチに向ける。
+  3) バックアップ（形式・件数の記録）
+       npm run db:backup
+     → backups/daynet-pg-<時刻>.dump と .manifest.json（件数・sha256）。pg_dump はサーバーと同じかより新しいメジャー版。
+  4) 具体的な差分の提示（読み取りのみ。ここで運営者の承認を得る）
+       npx prisma migrate diff --from-url "$DIRECT_URL" --to-migrations prisma/migrations \
+         --shadow-database-url "<空の一時DBのURL>" --script > migration-diff.sql
+     ・DROP TABLE / DROP COLUMN が含まれないことを確認（0001/0002 は追加のみ。CommunityMember.role は
+       USING CASE で enum に変換し、owner→OWNER, moderator/mod/admin→MODERATOR, その他→MEMBER）。
+  5) ベースライン（0001 は IF NOT EXISTS 等で冪等・追加のみ。既存行は変更しない）
+       npx prisma db execute --file prisma/migrations/0001_baseline/migration.sql --url "$DIRECT_URL"
+       npx prisma migrate resolve --applied 0001_baseline
+  6) v4 適用（列/表/制約の追加とバックフィル）
+       npx prisma migrate deploy
+  7) 検証
+       npm run db:compare -- --source-url "<本番ブランチの DIRECT_URL（読み取り）>"
+       npm run db:report-duplicates
+     期待値: 旧テーブルの件数・ID チェックサムがすべて一致、外部キーの孤児 0、
+            publishedAt 未設定の公開投稿 0、コミュニティ投稿の visibility はすべて COMMUNITY。
+            pairKey が NULL の会話（同一ペアの重複など）は一覧化されるだけで削除されない。
+  8) アプリを rehearsal ブランチに向けた Vercel Preview で、ログイン・既存投稿・DM・フォローを目視確認。
+  9) seed:options を実行（選択肢がないとオンボーディングできない）
+       npm run seed:options
+
+ B-2 本番切替（保守時間）
+  1) 告知した保守時間に、Vercel で旧アプリへの書き込みを止める（メンテナンス表示のデプロイ、
+     またはプロジェクトの一時停止）。
+  2) 本番ブランチで B-1 の 3)〜7), 9) を実行（バックアップは必ず取り直す）。
+  3) 旧アプリが保守開始直前まで書き込んだ行も変換するため（冪等）:
+       npm run media:backfill-legacy
+  4) v4 を本番にデプロイ（Build: npm run vercel-build）。CRON_SECRET / Cloudinary / AUTH_SECRET を設定。
+  5) スモークテスト: 既存アカウントでログイン、フィード、既存の写真（旧公開URLは legacyPublic として
+     ACL 確認後の短期トークン経由で表示）、DM、フォロー、通知。
+  6) 保守解除。
+
+────────────────────────────────────────
+手順C: SQLite のデータを新しい Neon に移す
+────────────────────────────────────────
+SQLite で作った migration を Postgres に流さない。Postgres 用の 0001 にデータをコピーしてから 0002 を適用する。
+
+ C-1 リハーサル
+  1) 整合したバックアップ（VACUUM INTO で一貫したコピー）
+       npm run db:backup -- --sqlite path\to\dev.db
+  2) 空の Neon ブランチを用意し DIRECT_URL / DATABASE_URL をそこへ
+  3) ベースラインだけ適用
+       npx prisma db execute --file prisma/migrations/0001_baseline/migration.sql --url "$DIRECT_URL"
+       npx prisma migrate resolve --applied 0001_baseline
+  4) コピー（バックアップしたファイルから。対象テーブルが空でなければ中止する）
+       npm run db:copy-sqlite -- --sqlite backups\daynet-sqlite-<時刻>.db
+     日時は Prisma SQLite のエポックミリ秒/ISO文字列の両方、真偽値は 0/1 を変換。
+  5) v4 を適用
+       npx prisma migrate deploy
+  6) 検証
+       npm run db:compare -- --sqlite backups\daynet-sqlite-<時刻>.db
+       npm run db:report-duplicates
+       npm run seed:options
+ C-2 本番切替: 保守時間中に書き込みを止め、最終の SQLite を再バックアップして C-1 を新しいブランチで
+     やり直す（コピーは空のDBにのみ可能）。検証後に Vercel の DATABASE_URL/DIRECT_URL を切替。
+
+────────────────────────────────────────
+ロールバック
+────────────────────────────────────────
+・0002 の変更は「追加」と backfill のみ（既存列の削除なし。CommunityMember.role の型だけ text→enum）。
+  旧アプリ（725eb69 以前の Postgres 版）が v4 スキーマ上で動く保証はないため、ロールバックは
+  「旧アプリ + 切替前のDB」に戻す方式とする。
+  1) Vercel で直前の本番デプロイを Promote（旧アプリに戻す）
+  2) DB を戻す:
+     ・Neon: 切替前に作成したブランチ/ポイントインタイムリストアで復元（推奨。保守開始時刻を記録しておく）
+     ・または: pg_restore --no-owner --clean --if-exists --dbname "<復元先URL>" backups/daynet-pg-<時刻>.dump
+       （空の新ブランチに復元してから接続先を切り替えるのが安全）
+  3) 切替後に v4 で作成されたデータ（新規投稿・DM等）は旧DBへ戻らない。必要なら v4 のDBから
+     対象期間の行を抽出して判断する（自動では行わない）。
+・CHECK 制約（Post_community_visibility など）だけを外したい場合:
+     ALTER TABLE "Post" DROP CONSTRAINT "Post_community_visibility";
+  ※ ModerationAction の追記専用トリガーは監査のため外さない。
+
+────────────────────────────────────────
+旧公開メディア（Cloudinary の type=upload 公開URL）
+────────────────────────────────────────
+・移行直後: 旧画像は Media(provider='legacy-url') として表示される。アプリは ACL 確認後に120秒の
+  トークン付きURL（/api/media/<id>/file）を発行し、そこから旧URLへリダイレクトする。
+  ただし旧URL自体は CDN 上で公開のままなので、この段階を「完全非公開」と表示・説明しない。
+・移行: npm run media:migrate-legacy（dry-run）→ 計画確認 → --apply（authenticated へコピーし所有者を検証）
+       → 表示確認 → --apply --destroy-public（同じ cloud の公開原本を destroy + invalidate）。
+  外部ホスト（unsplash/pravatar 等の旧デモ画像）は取り消せないため「not-ours」と記録される。
+・Post.images 列は移行完了まで残す（内部のみ、DTOに出さない）。

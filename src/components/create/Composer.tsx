@@ -357,8 +357,8 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
             <div className="flex items-center justify-between gap-3">
               <span>公開範囲</span>
               <div className="tabs w-[60%]">
-                <button type="button" aria-selected={visibility === "PUBLIC"} disabled={isPrivate} aria-disabled={isPrivate} onClick={() => setVisibility("PUBLIC")}>公開</button>
-                <button type="button" aria-selected={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}>フォロワー</button>
+                <button type="button" aria-pressed={visibility === "PUBLIC"} disabled={isPrivate} aria-disabled={isPrivate} onClick={() => setVisibility("PUBLIC")}>公開</button>
+                <button type="button" aria-pressed={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}>フォロワー</button>
               </div>
             </div>
             {isPrivate && <p className="field-hint">非公開アカウントの投稿は、承認したフォロワーだけが読めます（設定で変更できます）。</p>}

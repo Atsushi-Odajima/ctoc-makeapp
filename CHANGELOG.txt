@@ -1,0 +1,108 @@
+DayNet v4 — CHANGELOG（ctoc-makeapp → DayNet）
+ブランチ: feature/daynet-v4   基点: 725eb69 (feat: evolve Harenowa into a social news portal)
+日付: 2026-10-07
+
+────────────────────────────────────────
+P0（UI以前の権限・データ保護の修正）
+────────────────────────────────────────
+・DM送信 POST /api/dm/[id]: 参加者確認がなく、会話IDを知る任意のログインユーザーが送信できた。
+  → 全DM操作（取得/送信/承認/拒否/既読/通報）を loadConversationForParticipant 経由にし、非参加者は404。
+    送信時はブロック・相手の状態・会話状態（REQUESTED/ACCEPTED/DECLINED）・リクエスト中1通制限を検査。
+・GET /api/users/[username]: password 以外の全列（email、内部フラグ等）を返していた。
+  → 明示 select の PublicUser DTO に変更。email・password・OAuthトークン・role・dmPolicy等は返さない。
+  → GETにあった足あと記録の副作用を削除（POST /api/footprints、双方同意時のみ）。
+・投稿の可視性: 取得経路ごとにバラバラ（/posts は全件、explore は人気順に全件など）。
+  → src/lib/policies/posts.ts の visiblePostWhere（SQL）と canViewPostPure（仕様）に集約し、
+    フィード・一覧・詳細・ユーザー投稿・検索・通知プレビュー・保存一覧・コメント・メディア配信・OGP・
+    /api/home のすべてでページング前に適用。両者の一致は結合テストで総当たり検証。
+・PATCH /api/profile が onboardingDone を任意に書き換え可能だった → Zod strict で許可項目のみ。
+  onboardingDone はサーバーが3項目を検証して設定。
+・api/dm の participants.every による会話探索（2人一致を保証しない）→ Conversation.pairKey 一意制約。
+・vercel-build: `prisma db push && next build` → `prisma generate && next build`（ビルドでDBを変更しない）。
+・api/home: 静止画像を Reels として表示する処理と合成スコアを削除。動画プレーヤーは実VIDEO媒体のみ。
+・PostCard: likes+comments+7 で計算した「足あと」表示、保存・簡易反応の useState のみの実装を削除し、
+  いいね/気持ちわかる/保存を DB に永続化（PUT/DELETE 冪等）。
+・/api/upload（Vercel関数経由で Cloudinary の公開URLにアップロード）を 410 に。
+
+────────────────────────────────────────
+データモデル・移行
+────────────────────────────────────────
+・Prisma provider: sqlite → postgresql（Neon想定）。DATABASE_URL（pooled）と DIRECT_URL（migrate）を分離。
+・prisma/migrations/0001_baseline: 2026-10-07時点の既存スキーマを PostgreSQL 用に、IF NOT EXISTS 等で
+  冪等・追加のみにしたもの。db push で作られた既存Neon（2026-06スキーマ）にも安全に適用できる。
+・prisma/migrations/0002_daynet_v4: 仕様§4の追加（User拡張、ProfileOption、UserHobby、Post状態/公開範囲/
+  リビジョン、Media、UploadSession、Bookmark、Empathy、Follow.status、CommunityMember.status/role enum、
+  Block、Mute、CommunityMute、Report、ModerationAction、Conversation.pairKey/state、DirectMessage.
+  clientMessageId/deletedAt、Footprint.visitDay、IdempotencyKey、RateLimitBucket、WebhookEvent、
+  MediaDeletionJob、索引）。自動生成の DROP COLUMN（CommunityMember.role）を USING CASE の型変換に
+  書き換え。CHECK制約（趣味位置0..2、通報詳細≤1000、集まり投稿=COMMUNITY、自己ブロック禁止等）と
+  ModerationAction 追記専用トリガーを追加。バックフィル（publishedAt=createdAt、集まり投稿の公開範囲、
+  旧 Post.images → Media(legacy-url)、pairKey は同一ペアの最古のみ、Follow.acceptedAt）。
+  ※ リハーサルで「CHECK制約がバックフィルより前にあり既存の集まり投稿で失敗する」不具合を発見し、
+    制約をバックフィル後に移動して修正済み。
+・旧アカウントへのランダムな選択値補填はしない（profileVersion=0 のまま本人の選択を待つ）。
+・ツール: db:backup（pg_dump/VACUUM INTO + 件数マニフェスト）、db:copy-sqlite、db:compare、
+  db:report-duplicates、media:backfill-legacy、media:migrate-legacy、seed:options。
+・旧 prisma/seed.ts（架空ユーザー・外部写真のデモデータ）と tsconfig.seed.json を削除。
+  ログイン画面の「デモアカウント」表示も削除。
+
+────────────────────────────────────────
+API（§6）
+────────────────────────────────────────
+・応答 {data, nextCursor?}／エラー {error:{code,message,fieldErrors?,retryAfter?}}、401/403/404/409/413/422/429/503。
+・一覧は 20件（上限50）、publishedAt（等）+ id の複合カーソル。不正カーソルは 422。
+・追加/統合: /api/profile, /api/profile/options, /api/profile/introduction, /api/feed?tab=,
+  /api/posts(+publish), /api/posts/[id]/{like,empathy,bookmark}, /api/bookmarks, /api/comments/[id],
+  /api/follow/[id] PUT/DELETE, /api/follow-requests[/id/accept|decline], /api/communities/[slug]/{join,
+  requests,members,membership,mute,posts}, /api/dm[/id/{accept,decline,read}], /api/notifications/read,
+  /api/blocks, /api/mutes, /api/reports, /api/moderation/{reports,actions}, /api/media/{sign,complete,
+  webhook,[id]/delivery,[id]/file}, /api/footprints, /api/account, /api/account/export, /api/search,
+  /api/cron/{media,retention}。
+・互換: POST /api/posts/[id]/like と POST /api/follow/[id]（トグル）を Deprecation/Sunset ヘッダー付きで
+  2027-01-31 まで残す。/api/explore は /api/search へ 307。/api/home は時系列 discover のみ返す。
+・Origin/CSRF チェック（src/proxy.ts、Next 16 の proxy 規約）、全入力 Zod、本文はプレーンテキスト
+  （書記素数で上限判定、NFKC しない）、URL は http/https のみ。
+・レート制限は DB 共有（RateLimitBucket）。投稿10/時、コメント60/時、DM60/分+新規相手10/日、
+  署名20/時、通報10/時、ログイン失敗はアカウント/IPの双方（存在有無を明かさない文言）。
+・投稿作成は Idempotency-Key（24h）、DM は clientMessageId（同一内容は同じ結果、異なる内容は409）。
+
+────────────────────────────────────────
+メディア（§8）
+────────────────────────────────────────
+・MediaProvider 境界（signUpload/verifyUpload/verifyWebhook/issueDelivery/deleteAsset）。
+・Cloudinary: type=authenticated の署名付き直接アップロード（Vercel を中継しない）、サーバー生成の
+  public_id、完了時は応答署名＋Admin API で幅/高さ/長さ/容量を確認、動画は H.264/AAC MP4 1080p 上限の
+  eager 変換と poster、Webhook は生body・公式SDK検証・±5分・イベントID重複排除・所有者/セッション照合・
+  状態は前進のみ。配信は URL 固有の token（120秒、変換パスに束縛）。公開URL・恒久署名URL・
+  private_download_url へのフォールバックなし（未設定なら 503）。
+・開発/E2E 専用 local プロバイダ（Vercel では起動しない、EXIF/GPS除去、HEIC/動画変換なし）。
+・旧公開画像は ACL 確認後の120秒トークン経由で表示（legacyPublic）。完全非公開化は移行ツールで実施。
+・未添付24時間・失敗7日の掃除、削除は再試行キュー（Cron）。
+
+────────────────────────────────────────
+ブランド・UI（Step2〜3）
+────────────────────────────────────────
+・名称 DayNet。ロゴ/マーク/ファビコン/PWAアイコン/Apple Touch Icon を design/DayNet/assets の
+  SVG/PNG から使用（文字の再生成なし）。旧ロゴ（public/logo.svg 等）と旧 manifest を削除。
+・フォント: Outfit / BIZ UDPGothic を WOFF2 の unicode-range サブセットにして自己配信（OFL同梱）。
+  Noto Sans JP（Google Fonts 経由）を廃止。
+・配色/タイポ/寸法/状態を仕様の数値どおりにトークン化（globals.css）。旧 tailwind.config.ts（青系）削除。
+・AppShell: 72px ヘッダー、浮いた5項目ナビ（ホーム・集まり・投稿・DM・自分）、1120px 以上で上ナビ、
+  aria-current、入力中はナビを隠す、safe-area、文書スクロール（overflow:hidden の固定高さを廃止）。
+・viewport の maximumScale/userScalable 固定を削除（拡大を妨げない）。
+・画面: /（未ログイン時の紹介、ログイン時は /feed へ）、/feed、/create、/post/[id]、/profile、/u/[username]、
+  /profile/edit、/onboarding（3段階+プレビュー）、/communities、/communities/[slug]、/messages、
+  /messages/[id]、/notifications、/settings、/bookmarks、/footprints、/explore、/about、/terms、
+  /privacy（草案）、/admin/reports、/news（副導線として維持）。
+・既存 Story は閲覧のみ維持（期限・フォロー承認・ブロックを適用、新規作成 API は 410）。
+・PWA: app/manifest.ts、静的ファイルのみキャッシュする public/sw.js と offline.html、更新は利用者が選択。
+
+────────────────────────────────────────
+依存関係（ロックファイルが正本）
+────────────────────────────────────────
+・追加（devDependencies）: vitest 3.2.4（テストランナー）、@playwright/test 1.56.1（E2E。実行環境の
+  Chromium 1194 と一致する版）、sharp 0.34.5（next の optional 依存として既に入っていたものを明示。
+  開発用メディアの検証/EXIF除去とテストで使用）。
+・既存依存の版は変更していない（next 16.2.9 / react 19.2.4 / prisma 6.19.3 / next-auth 5.0.0-beta.31）。
+・未使用になった依存（framer-motion, zustand, react-hook-form, @hookform/resolvers, lucide-react, clsx,
+  tailwind-merge）は HANDOFF.txt の「次の作業」に記載（削除は別PRで実施する方針）。

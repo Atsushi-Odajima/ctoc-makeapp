@@ -1,0 +1,125 @@
+DayNet v4 — 引継ぎ（HANDOFF）
+日付: 2026-10-07
+ブランチ: feature/daynet-v4（基点 725eb69）。コミット一覧は `git log 725eb69..feature/daynet-v4`。
+最終コミットのハッシュはこのファイルを含むコミット（git log -1）を参照。
+
+結論（先に）
+  コード・移行手順・テストは揃っているが、「公開可能」ではない（受入基準T）。
+  未完: (1) Cloudinary の token-based 配信の契約/有効化と実配信検証、(2) 実iPhone（Safari / ホーム画面追加）
+  での確認、(3) 本番データの実体確認と移行（手順は MIGRATION_RUNBOOK.txt、リハーサルはローカルのみ）。
+
+────────────────────────────────────────
+1. 変更ファイル（概要）
+────────────────────────────────────────
+  prisma/schema.prisma, prisma/migrations/{migration_lock.toml,0001_baseline,0002_daynet_v4}
+  prisma.config.ts, scripts/lib/load-env.cjs（env読込の統一）
+  src/proxy.ts（Origin/CSRF）、next.config.ts（セキュリティヘッダー、/api no-store、sw.js no-cache）
+  src/lib/api/*（応答/エラー契約、viewer解決、ページング）、src/lib/policies/*（認可の正本）、
+  src/lib/dto/*（公開DTO）、src/lib/validation/*、src/lib/services/*、src/lib/media/*、
+  src/lib/rate-limit.ts、src/lib/idempotency.ts、src/lib/auth.ts、src/lib/integrations/cinemix.ts
+  src/app/api/**（全面改修・追加）、src/app/(app)/**・(auth)/**・page.tsx・layout.tsx・manifest.ts・fonts.css・globals.css
+  src/components/**（brand, layout, ui, media, post, feed, create, profile, community, dm, settings, auth, stories）
+  public/brand/*, public/fonts/*（WOFF2 + OFL）, public/sw.js, public/offline.html
+  scripts/*（backup/copy/compare/duplicates/backfill/media-migrate/seed-options/run-e2e）
+  tests/unit, tests/integration, tests/e2e, tests/fixtures, vitest.config.ts, playwright.config.ts
+  design/DayNet/（受領した資料一式）
+  削除: 旧ロゴ/アイコン/manifest、旧レイアウト部品、prisma/seed.ts（架空データ）、tailwind.config.ts、/api/messages,/api/interests,/api/users
+
+────────────────────────────────────────
+2. 設計判断
+────────────────────────────────────────
+・認可は src/lib/policies に集約。投稿の可視性は SQL（visiblePostWhere）をページング前に適用し、
+  純関数 canViewPostPure と総当たりで一致することを結合テストで検証（不一致1件を発見し修正済み）。
+・存在の秘匿: 見られない投稿・会話・非公開集まりの内容・運営画面は 404（403 は「見えるが操作不可」の時のみ）。
+・旧ユーザー（3項目未設定）は閲覧可。投稿/コメント/新規DM/集まり作成は PROFILE_REQUIRED（403）。
+  画面上部に設定バナー、/create はオンボーディングへ誘導。
+・非公開アカウントの個人投稿は PUBLIC 指定でも FOLLOWERS で保存。公開の集まりへの投稿は集まりが正本で、
+  非公開アカウントには投稿前に確認を必須化（CONFIRMATION_REQUIRED）。
+・DM: 相互フォロー=ACCEPTED、それ以外=REQUESTED（相手承認まで1通）。dmPolicy=CLOSED は新規会話を受けない。
+  5秒ポーリング（表示中のみ）。E2E暗号化ではない旨を画面と規約草案に明記。
+・足あと: 双方 footprintOptIn=true の時だけ POST で記録、UTC日単位で一意、30日で削除。旧行は visitDay=NULL のまま
+  （無同意で記録された可能性があるため、どちらかがオプトインしない限り表示されない）。
+・メディア: MediaProvider 境界。Cloudinary は authenticated + URL固有token（120秒、変換パスに束縛）。
+  未設定時は 503 で拒否し、公開URLへは落とさない。開発/E2Eは local プロバイダ（Vercel不可）。
+  旧公開画像は legacy-url として ACL 後の120秒トークン経由で表示し、UI/規約では「完全非公開」と言わない。
+・レート制限・冪等キーは DB（RateLimitBucket / IdempotencyKey）。サーバーレスのメモリには持たない。
+・フォント: Japanese が 4.6MB/ウェイトあるため WOFF2 + unicode-range（基本/JIS第1/第2/その他）に分割。
+・認証: Auth.js JWT は維持。onboardingDone/role はトークンから読まず、毎リクエスト DB で判定。
+  ログイン失敗はアカウント（メールのハッシュ）とIPの双方で制限、存在有無が分からない同一文言。
+・既存の Cloudinary フォルダ（feeld）と localStorage キー（harenowa-seen-posts）は改名していない
+  （後者は使われなくなっただけ）。新規の媒体は CLOUDINARY_FOLDER（既定 daynet/media）に作成。
+
+────────────────────────────────────────
+3. 外部サービスの状態（この作業環境では未接続）
+────────────────────────────────────────
+  Neon / 本番DB         : 接続情報なし。本番データの所在は git 履歴からの推定のみ（RUNBOOK §0）。
+  Cloudinary            : 認証情報なし。adapter は固定値のテスト（署名・トークン・Webhook検証）まで。
+                          token-based access はプラン/機能の有効化が必要（費用は契約確認。無料で同等とは言えない）。
+                          有料契約は自動で結んでいない。
+  Vercel                : 未デプロイ。Preview/Production の環境変数・Cron 設定が必要。
+  OAuth（Google/Facebook/LINE）: 未設定。env がそろった Provider だけ有効になる。
+  実iPhone              : 未確認（Playwright の Chromium 390×844 でのみ確認）。
+
+必要な資格情報・作業（運営者）
+  ・Neon: 本番/Preview それぞれの DATABASE_URL（pooled）と DIRECT_URL
+  ・Cloudinary: CLOUD_NAME / API_KEY / API_SECRET / AUTH_TOKEN_KEY（token-based access 有効化済みの環境）、
+    Webhook 通知先 = APP_ORIGIN/api/media/webhook
+  ・AUTH_SECRET、CRON_SECRET、MEDIA_URL_SECRET（環境ごとに別値）、APP_ORIGIN
+  ・Vercel の本番ドメイン、OAuth のリダイレクトURL登録
+  ・利用規約/プライバシーポリシー草案（/terms, /privacy）の確定（通報記録の保管期間など）
+
+────────────────────────────────────────
+4. 受入基準（A〜T）の状況
+────────────────────────────────────────
+  A 横スクロールなし/日本語・絵文字/200%     自動確認済（Chromium: 390/320/768/1440、1440×900の200%=720×450、長い名前と絵文字）
+                                               実iPhoneの文字拡大は未確認
+  B 旧名称なし                                 自動確認済（manifest/タイトル/HTML、ソース grep）
+  C 3項目のAPI検証・迂回不可                   結合テスト済
+  D 移行前後の比較                             リハーサル（fixture）で件数/ID/外部キー一致を確認済。実データは未移行
+  E 非公開ユーザー投稿の漏れなし              結合テスト済（/posts /feed /home /search /users /notifications /bookmarks /OGP）
+  F 非参加者のDM送信                           結合テスト・E2E済
+  G 公開DTO・ブロック                          結合テスト・E2E済
+  H 反応/保存の永続・重複なし                  結合（並行10回）・E2E（再読込）済。失敗時rollbackは実装のみ（自動試験なし）
+  I ページング・新着ボタン                      結合テスト済（同時刻の境界含む）
+  J iPhoneでのHEIC/MOV/境界値/回線切断/取消    未確認（要 実機 + Cloudinary）。クライアント側の事前検査と取消は実装済
+  K 他人のasset/偽webhook/期限切れ/変換変更     他人のasset・偽webhook・期限切れ(local)・変換パス改変(HMAC)は自動確認済。
+                                               実Cloudinary CDN でのトークンなしアクセス拒否は未確認
+  L 公開前は所有者のみ/旧公開URL削除           公開前の閲覧制限は確認済。旧公開URLの破棄はツールのみ（未実行）
+  M 実動画のみ再生・無音初期・画面外停止        実装済（手動再生/muted/playsInline/IntersectionObserver/visibilitychange）。
+                                               実動画の再生確認は未実施（ローカルにトランスコード環境なし）
+  N 非公開コミュニティ                         結合テスト・E2E済
+  O 再送で二重保存なし                         結合テスト済（Idempotency-Key / clientMessageId）
+  P iPhone Safari実機 + ホーム画面追加          未確認
+  Q SW/キャッシュに私的データなし・アカウント切替  E2E（SWキャッシュ内容、ログアウト後の下書き消去）— TEST_RESULTS.txt 参照
+  R lint/typecheck/test/build/Playwright        TEST_RESULTS.txt 参照
+  S 通報→判断→非表示/復元・権限               結合テスト済（監査ログの更新/削除不可も確認）
+  T 公開可能の判断                             不可（上記 J/K/L/M/P と本番DB移行が未完）
+
+────────────────────────────────────────
+5. 既知の課題・制約
+────────────────────────────────────────
+  ・ブロック後も、すでに発行済みの媒体URLは最大120秒アクセス可能（仕様どおりの限界。UIの説明に記載）。
+  ・ダウンロード済みコピー・スクリーンショットは回収できない（規約草案に記載）。
+  ・本人エクスポートに写真/動画の原本は含まない（別ジョブの期限付きリンクは未実装）。
+  ・退会: 即時停止＋7日以内の削除は Cron（毎日）で実施。Cloudinary 側の削除は削除キュー経由（再試行あり）。
+  ・旧データで同一ペアの会話が複数ある場合、pairKey は最古のみ。残りは db:report-duplicates で確認し人が判断。
+  ・旧 Story は閲覧のみ（新規作成 API は 410）。旧 Story 画像は外部の公開URLのまま。
+  ・検索は ILIKE の部分一致（全角/半角の正規化検索キーは未実装）。
+  ・ニュース機能（/news）は旧ポータルから維持した副導線。人気度スコアの並び替えは旧実装のまま。
+  ・未使用になった依存（framer-motion, zustand, react-hook-form, @hookform/resolvers, lucide-react, clsx,
+    tailwind-merge）は残している（ロック変更を最小にするため）。別PRで削除推奨。
+  ・【要対応・公開前】npm audit --omit=dev（2026-10-07）: 12件（critical 4 / high 7 / moderate 1）。
+    主なもの: next 16.2.9（16.3.5 以下が対象の critical）、@auth/core <=0.41.2（next-auth 5 beta 経由, critical）、
+    sharp/libvips、postcss、nanoid 等。仕様「依存を理由なく全更新しない」に従い本ブランチでは版を固定したまま。
+    公開前に next の修正版と next-auth の更新を別PRで当て、本書のテスト一式（lint/typecheck/test/e2e）を再実行すること。
+  ・Next.js 16 の proxy（旧 middleware）は Origin チェックのみ。認可はすべて API で実施。
+
+────────────────────────────────────────
+6. 次の1手
+────────────────────────────────────────
+  1) Vercel Production の DATABASE_URL と Neon のテーブル/件数を確認し、RUNBOOK §0 の判定（A/B/C）を確定する。
+  2) Cloudinary の開発用環境で token-based access を有効化し、Preview に設定して
+     「写真/動画の投稿→120秒URL→期限切れ→再発行」「トークンなしの直アクセスが401/403」を実機で確認。
+  3) npm audit の critical（next / @auth/core）を別PRで更新し、テスト一式を再実行。
+  4) Vercel Preview（HTTPS）で iPhone 実機（Safari / ホーム画面追加）を確認: safe-area、キーボード、
+     HEIC/縦写真/MOV、60秒/100MBの境界、回線切断、取消、ログイン、戻る、共有。

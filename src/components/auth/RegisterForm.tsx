@@ -39,7 +39,7 @@ export function RegisterForm() {
       <label className="block">
         <span className="field-label">表示名（匿名でOK・30文字まで）</span>
         <input className="input" autoComplete="nickname" {...field("name")} />
-        <span className="field-hint block text-right">{graphemeCount(form.name)} / 30</span>
+        <span aria-hidden="true" className="field-hint block text-right">{graphemeCount(form.name)} / 30</span>
         {errors.name && <span className="field-error block">{errors.name.join(" ")}</span>}
       </label>
       <label className="block">

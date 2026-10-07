@@ -39,13 +39,16 @@ export function SettingsView() {
   useEffect(load, [])
 
   async function patch(body: Partial<Own>, message: string) {
+    const before = me
+    setMe(m => (m ? { ...m, ...body } : m)) // reflect the choice immediately; roll back on failure
     try {
       const res = await api<Own>("/api/profile", { method: "PATCH", body })
       setMe(res.data)
       toast.success(message)
       router.refresh()
     } catch (e) {
-      toast.error(e instanceof ApiClientError ? e.message : "変更できませんでした")
+      setMe(before)
+      toast.error(e instanceof ApiClientError ? e.message : "変更できませんでした（元に戻しました）")
     }
   }
 

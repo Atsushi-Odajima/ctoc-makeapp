@@ -52,13 +52,13 @@ export function LoginForm({ providers, callbackUrl, deleted, oauthError }: { pro
           <span className="field-label">メールアドレス</span>
           <input className="input" type="email" autoComplete="email" inputMode="email" value={email} onChange={e => setEmail(e.target.value)} required />
         </label>
-        <label className="block">
-          <span className="field-label">パスワード</span>
-          <span className="flex gap-2">
-            <input className="input" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required />
-            <button type="button" className="btn btn-secondary shrink-0" onClick={() => setShow(s => !s)} aria-pressed={show}>{show ? "隠す" : "表示"}</button>
-          </span>
-        </label>
+        <div>
+          <label htmlFor="login-password" className="field-label">パスワード</label>
+          <div className="flex gap-2">
+            <input id="login-password" className="input" type={show ? "text" : "password"} autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required />
+            <button type="button" className="btn btn-secondary shrink-0" onClick={() => setShow(s => !s)} aria-pressed={show} aria-controls="login-password">{show ? "隠す" : "表示"}</button>
+          </div>
+        </div>
         {error && <Notice tone="error">{error}</Notice>}
         <button type="submit" className="btn btn-primary btn-block" disabled={loading} aria-busy={loading}>{loading ? "ログイン中…" : "ログイン"}</button>
       </form>

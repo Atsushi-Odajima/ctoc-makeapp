@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import "./fonts.css"
 import "./globals.css"
 import { Providers } from "@/components/layout/Providers"
 import { APP_DESCRIPTION, APP_DISPLAY_NAME, THEME_COLOR } from "@/config/brand"
@@ -40,8 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <head>
-        {/* Fonts are self-hosted (OFL); no external font CDN. */}
-        <link rel="stylesheet" href="/fonts/daynet-fonts.css" />
+        {/* Fonts are self-hosted (OFL, see src/app/fonts.css); no external font CDN. */}
         <link rel="preload" href="/fonts/BIZUDPGothic-Regular-base.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body>
