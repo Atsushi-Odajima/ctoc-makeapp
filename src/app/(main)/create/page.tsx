@@ -1,10 +1,17 @@
 "use client"
-import { useState, useRef } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { X, ImagePlus, MapPin, Loader2, Check, Camera } from "lucide-react"
+import { Camera, Check, ImagePlus, Loader2, MapPin, Sparkles, X } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { getAvatarUrl } from "@/lib/utils"
 import toast from "react-hot-toast"
+
+const templates = [
+  { label: "日記", text: "今日の小さなハレ。\n" },
+  { label: "カフェ", text: "ここ、雰囲気までおいしかった。\n#カフェ部 " },
+  { label: "推し活", text: "今日も推しのおかげで元気。\n#推しのいる生活 " },
+  { label: "質問", text: "みんなならどうする？\n" },
+]
 
 export default function CreatePage() {
   const router = useRouter()
@@ -23,21 +30,19 @@ export default function CreatePage() {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     if (selectedImages.length + files.length > 5) {
-      toast.error("写真は最大5枚まで")
+      toast.error("写真は最大5枚までです")
       return
     }
     setUploading(true)
     try {
-      const urls = await Promise.all(
-        files.map(async (file) => {
-          const fd = new FormData()
-          fd.append("file", file)
-          const res = await fetch("/api/upload", { method: "POST", body: fd })
-          if (!res.ok) throw new Error("Upload failed")
-          const data = await res.json()
-          return data.url as string
-        })
-      )
+      const urls = await Promise.all(files.map(async (file) => {
+        const fd = new FormData()
+        fd.append("file", file)
+        const res = await fetch("/api/upload", { method: "POST", body: fd })
+        if (!res.ok) throw new Error("Upload failed")
+        const data = await res.json()
+        return data.url as string
+      }))
       setSelectedImages(prev => [...prev, ...urls])
     } catch {
       toast.error("アップロードに失敗しました")
@@ -61,7 +66,7 @@ export default function CreatePage() {
         body: JSON.stringify({ images: selectedImages, caption, location }),
       })
       if (!res.ok) throw new Error("Failed")
-      toast.success("投稿しました！")
+      toast.success("投稿しました")
       router.push("/feed")
       router.refresh()
     } catch {
@@ -72,25 +77,19 @@ export default function CreatePage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <button onClick={() => step === "edit" ? setStep("select") : router.back()}>
-          <X className="w-6 h-6 text-slate-700" />
+    <div className="flex h-full flex-col bg-white">
+      <div className="flex items-center justify-between border-b border-[#dfe3e8] px-4 py-3">
+        <button onClick={() => step === "edit" ? setStep("select") : router.back()} aria-label="閉じる">
+          <X className="h-6 w-6 text-slate-700" />
         </button>
-        <h1 className="font-semibold text-slate-900">新しい投稿</h1>
+        <h1 className="font-black text-slate-900">{step === "select" ? "新しいハレ" : "投稿を書く"}</h1>
         {step === "select" ? (
-          <button
-            onClick={() => { if (selectedImages.length === 0) return toast.error("写真を選んでください"); setStep("edit") }}
-            disabled={selectedImages.length === 0 || uploading}
-            className="text-blue-600 font-semibold text-sm disabled:opacity-40"
-          >
+          <button onClick={() => { if (selectedImages.length === 0) return toast.error("写真を選んでください"); setStep("edit") }} disabled={selectedImages.length === 0 || uploading} className="text-sm font-bold text-[#0b1f3a] disabled:opacity-40">
             次へ
           </button>
         ) : (
-          <button onClick={handlePost} disabled={loading}
-            className="text-blue-600 font-semibold text-sm disabled:opacity-40 flex items-center gap-1">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+          <button onClick={handlePost} disabled={loading} className="flex items-center gap-1 text-sm font-bold text-[#0b1f3a] disabled:opacity-40">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             シェア
           </button>
         )}
@@ -98,58 +97,35 @@ export default function CreatePage() {
 
       {step === "select" ? (
         <div className="flex-1 overflow-y-auto">
-          {/* Preview area */}
           {selectedImages.length > 0 ? (
-            <div className="relative aspect-square bg-slate-100">
-              <img src={selectedImages[selectedImages.length - 1]} alt="" className="w-full h-full object-cover" />
-              <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-                {selectedImages.length}/5
-              </div>
+            <div className="relative aspect-square bg-[#eef1f4]">
+              <img src={selectedImages[selectedImages.length - 1]} alt="" className="h-full w-full object-cover" />
+              <div className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">{selectedImages.length}/5</div>
             </div>
           ) : (
-            <div className="aspect-square bg-slate-50 flex flex-col items-center justify-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center">
-                <Camera className="w-10 h-10 text-blue-400" />
+            <div className="flex aspect-square flex-col items-center justify-center gap-4 bg-[#f8fafc]">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-[#dfe3e8] bg-white">
+                <Camera className="h-10 w-10 text-[#0b1f3a]" />
               </div>
-              <p className="text-slate-400 text-sm">写真を追加してください</p>
+              <p className="text-sm font-semibold text-slate-500">写真を追加して、今日のハレを残す</p>
             </div>
           )}
 
-          {/* Upload button */}
-          <div className="px-4 py-4 border-b border-slate-100">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || selectedImages.length >= 5}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-blue-300 text-blue-600 font-semibold text-sm hover:bg-blue-50 transition-colors disabled:opacity-40"
-            >
-              {uploading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> アップロード中...</>
-              ) : (
-                <><ImagePlus className="w-5 h-5" /> カメラロールから選ぶ (最大5枚)</>
-              )}
+          <div className="border-b border-[#dfe3e8] px-4 py-4">
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading || selectedImages.length >= 5} className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-[#98a2b3] py-3 text-sm font-bold text-[#0b1f3a] hover:bg-[#f8fafc] disabled:opacity-40">
+              {uploading ? <><Loader2 className="h-5 w-5 animate-spin" /> アップロード中...</> : <><ImagePlus className="h-5 w-5" /> カメラロールから選ぶ</>}
             </button>
           </div>
 
-          {/* Selected thumbnails */}
           {selectedImages.length > 0 && (
             <div className="px-4 py-3">
-              <p className="text-xs text-slate-400 mb-2">選択中 ({selectedImages.length}/5)</p>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <p className="mb-2 text-xs font-bold text-slate-400">選択中 ({selectedImages.length}/5)</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {selectedImages.map((url, i) => (
-                  <div key={i} className="relative w-20 h-20 flex-shrink-0">
-                    <img src={url} alt="" className="w-full h-full object-cover rounded-xl" />
-                    <button
-                      onClick={() => removeImage(i)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs shadow"
-                    >✕</button>
+                  <div key={url} className="relative h-20 w-20 flex-shrink-0">
+                    <img src={url} alt="" className="h-full w-full rounded-md object-cover" />
+                    <button onClick={() => removeImage(i)} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0b1f3a] text-xs text-white">×</button>
                   </div>
                 ))}
               </div>
@@ -159,57 +135,51 @@ export default function CreatePage() {
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="flex gap-3 px-4 py-4">
-            <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100">
-              <img src={selectedImages[0]} alt="" className="w-full h-full object-cover" />
+            <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-[#eef1f4]">
+              <img src={selectedImages[0]} alt="" className="h-full w-full object-cover" />
             </div>
-            <textarea
-              value={caption}
-              onChange={e => setCaption(e.target.value)}
-              placeholder="キャプションを書く..."
-              className="flex-1 text-slate-800 text-sm placeholder-slate-400 resize-none outline-none leading-relaxed min-h-[80px]"
-              maxLength={2200}
-            />
+            <textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="キャプションを書く..." className="min-h-[96px] flex-1 resize-none text-sm leading-relaxed text-slate-800 outline-none placeholder:text-slate-400" maxLength={2200} />
           </div>
 
-          <div className="border-t border-slate-100">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-              {user && (
-                <img
-                  src={getAvatarUrl({ avatar: user.avatar, name: user.name || "User" })}
-                  alt=""
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              )}
-              <span className="text-sm font-semibold text-slate-700">@{user?.username}</span>
+          <div className="border-y border-[#dfe3e8] px-4 py-3">
+            <div className="mb-2 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-[#e85d04]" />
+              <p className="text-xs font-black text-slate-500">投稿テンプレ</p>
             </div>
-
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50">
-              <MapPin className="w-5 h-5 text-slate-400" />
-              <input
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                placeholder="場所を追加..."
-                className="flex-1 text-sm text-slate-700 placeholder-slate-400 outline-none"
-              />
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              {templates.map(t => (
+                <button key={t.label} onClick={() => setCaption(prev => prev ? `${prev}\n${t.text}` : t.text)} className="flex-shrink-0 rounded-md border border-[#d0d5dd] px-3 py-1.5 text-xs font-bold text-[#344054]">
+                  {t.label}
+                </button>
+              ))}
             </div>
+          </div>
 
-            {selectedImages.length > 1 && (
-              <div className="px-4 py-3">
-                <p className="text-xs text-slate-400 mb-2">選択中 ({selectedImages.length}枚)</p>
-                <div className="flex gap-2 overflow-x-auto">
-                  {selectedImages.map((url, i) => (
-                    <div key={i} className="relative w-16 h-16 flex-shrink-0">
-                      <img src={url} alt="" className="w-full h-full object-cover rounded-lg" />
-                      <button
-                        onClick={() => removeImage(i)}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full text-white flex items-center justify-center text-xs"
-                      >✕</button>
-                    </div>
-                  ))}
-                </div>
+          <div className="border-b border-[#e6e9ed]">
+            <div className="flex items-center gap-3 border-b border-[#e6e9ed] px-4 py-3">
+              {user && <img src={getAvatarUrl({ avatar: user.avatar, name: user.name || "User" })} alt="" className="h-8 w-8 rounded-full object-cover" />}
+              <span className="text-sm font-bold text-slate-700">@{user?.username}</span>
+              <span className="ml-auto text-xs font-bold text-[#667085]">公開</span>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <MapPin className="h-5 w-5 text-slate-400" />
+              <input value={location} onChange={e => setLocation(e.target.value)} placeholder="場所を追加..." className="flex-1 text-sm text-slate-700 outline-none placeholder:text-slate-400" />
+            </div>
+          </div>
+
+          {selectedImages.length > 1 && (
+            <div className="px-4 py-3">
+              <p className="mb-2 text-xs font-bold text-slate-400">選択中 ({selectedImages.length}枚)</p>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {selectedImages.map((url, i) => (
+                  <div key={url} className="relative h-16 w-16 flex-shrink-0">
+                    <img src={url} alt="" className="h-full w-full rounded-lg object-cover" />
+                    <button onClick={() => removeImage(i)} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0b1f3a] text-xs text-white">×</button>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

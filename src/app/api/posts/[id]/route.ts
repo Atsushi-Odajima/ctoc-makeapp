@@ -14,6 +14,8 @@ export async function GET(
     where: { id },
     include: {
       user: { select: { id: true, name: true, username: true, avatar: true } },
+      newsArticle: { select: { id: true, title: true, link: true, source: true, category: true, publishedAt: true } },
+      community: { select: { id: true, slug: true, name: true } },
       _count: { select: { likes: true, comments: true } },
       likes: { where: { userId: uid }, select: { userId: true } },
     },

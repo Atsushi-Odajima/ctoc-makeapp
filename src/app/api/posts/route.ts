@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { id: true, name: true, username: true, avatar: true } },
+      newsArticle: { select: { id: true, title: true, link: true, source: true, category: true, publishedAt: true } },
+      community: { select: { id: true, slug: true, name: true } },
       _count: { select: { likes: true, comments: true } },
       likes: { where: { userId: uid }, select: { userId: true } },
     },
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { caption, images, location } = await req.json()
-  if (!images || images.length === 0) return NextResponse.json({ error: "Images required" }, { status: 400 })
+  if ((!images || images.length === 0) && !caption?.trim()) return NextResponse.json({ error: "Content required" }, { status: 400 })
   const post = await prisma.post.create({
     data: { userId: session.user.id, caption, images: JSON.stringify(images), location },
     include: { user: { select: { id: true, name: true, username: true, avatar: true } } },

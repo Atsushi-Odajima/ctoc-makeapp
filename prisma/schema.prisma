@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -33,6 +33,9 @@ model User {
   footprintsMade         Footprint[]              @relation("Visitor")
   sentMessages           DirectMessage[]
   conversations          ConversationParticipant[]
+  newsComments           NewsComment[]
+  communityMemberships   CommunityMember[]
+  communitiesOwned       Community[]                @relation("CommunityOwner")
   accounts               Account[]
   sessions               Session[]
 }
@@ -43,12 +46,19 @@ model Post {
   caption   String?
   images    String   @default("[]")
   location  String?
+  newsArticleId String?
+  communityId   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  likes    Like[]
-  comments Comment[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsArticle NewsArticle? @relation(fields: [newsArticleId], references: [id], onDelete: SetNull)
+  community   Community?   @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  likes       Like[]
+  comments    Comment[]
+
+  @@index([newsArticleId, createdAt])
+  @@index([communityId, createdAt])
 }
 
 model Like {
@@ -150,6 +160,87 @@ model DirectMessage {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model NewsArticle {
+  id          String   @id
+  title       String
+  link        String
+  summary     String?
+  category    String
+  feedKey     String
+  source      String
+  publishedAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments    NewsComment[]
+  activities  NewsActivity[]
+  quotedPosts Post[]
+
+  @@index([publishedAt])
+  @@index([feedKey, publishedAt])
+}
+
+model NewsComment {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  article NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model NewsActivity {
+  id         String   @id @default(cuid())
+  articleId  String
+  visitorKey String
+  kind       String
+  bucket     String
+  createdAt  DateTime @default(now())
+
+  article NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, visitorKey, kind, bucket])
+  @@index([articleId, kind, createdAt])
+}
+
+model Community {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  category    String
+  coverImage  String?
+  isPrivate   Boolean  @default(false)
+  ownerId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner   User?             @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members CommunityMember[]
+  posts   Post[]
+
+  @@index([category, createdAt])
+}
+
+model CommunityMember {
+  communityId String
+  userId      String
+  role        String   @default("member")
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([communityId, userId])
+  @@index([userId, createdAt])
 }
 
 model Account {

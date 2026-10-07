@@ -8,10 +8,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const onboardingDone = (session.user as { onboardingDone?: boolean }).onboardingDone
   if (!onboardingDone) redirect("/onboarding")
   return (
-    <div className="flex flex-col h-dvh bg-[#FAFAFA] max-w-lg mx-auto">
-      <main className="flex-1 overflow-hidden">
-        {children}
-      </main>
+    <div className="mx-auto flex h-dvh max-w-lg flex-col border-x border-[#dfe3e8] bg-white">
+      <main className="flex-1 overflow-hidden">{children}</main>
       <InstagramNav />
     </div>
   )

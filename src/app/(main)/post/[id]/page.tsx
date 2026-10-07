@@ -1,10 +1,9 @@
 "use client"
-import { useState, useEffect, use, useRef } from "react"
+import { use, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2 } from "lucide-react"
-import { getAvatarUrl, formatTimeAgo } from "@/lib/utils"
-import { cn } from "@/lib/utils"
-import type { Post, Comment } from "@/types"
+import { Bookmark, ChevronLeft, Heart, MessageCircle, MoreHorizontal, Send, Sparkles, Loader2 } from "lucide-react"
+import { cn, formatTimeAgo, getAvatarUrl } from "@/lib/utils"
+import type { Comment, Post } from "@/types"
 import toast from "react-hot-toast"
 
 export default function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,11 +29,11 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
   const handleLike = async () => {
     if (!post) return
     const newLiked = !post.isLiked
-    setPost(prev => prev ? { ...prev, isLiked: newLiked, likesCount: prev.likesCount + (newLiked ? 1 : -1) } : null)
+    setPost(prev => prev ? { ...prev, isLiked: newLiked, likesCount: Math.max(0, prev.likesCount + (newLiked ? 1 : -1)) } : null)
     try {
       await fetch(`/api/posts/${id}/like`, { method: "POST" })
     } catch {
-      setPost(prev => prev ? { ...prev, isLiked: !newLiked, likesCount: prev.likesCount + (newLiked ? -1 : 1) } : null)
+      setPost(prev => prev ? { ...prev, isLiked: !newLiked, likesCount: Math.max(0, prev.likesCount + (newLiked ? -1 : 1)) } : null)
     }
   }
 
@@ -58,120 +57,87 @@ export default function PostDetailPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center">
-      <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
-    </div>
-  )
+  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-[#0b1f3a]" /></div>
   if (!post) return null
 
   const imgs = post.images || []
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-2 py-3 border-b border-slate-100 flex-shrink-0">
-        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100">
-          <ChevronLeft className="w-5 h-5 text-slate-700" />
+    <div className="flex h-full flex-col bg-white">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b border-[#dfe3e8] px-2 py-3">
+        <button onClick={() => router.back()} className="rounded-md p-2 hover:bg-[#f2f4f7]" aria-label="戻る">
+          <ChevronLeft className="h-5 w-5 text-slate-700" />
         </button>
-        <span className="text-base font-bold text-slate-900 flex-1">投稿</span>
-        <button className="p-2 rounded-full hover:bg-slate-100">
-          <MoreHorizontal className="w-5 h-5 text-slate-700" />
+        <span className="flex-1 text-base font-black text-slate-900">投稿</span>
+        <button className="rounded-md p-2 hover:bg-[#f2f4f7]" aria-label="投稿メニュー">
+          <MoreHorizontal className="h-5 w-5 text-slate-700" />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Post header */}
         <div className="flex items-center gap-3 px-4 py-3">
           <button onClick={() => router.push(`/u/${post.user.username}`)}>
-            <img src={getAvatarUrl(post.user)} alt="" className="w-9 h-9 rounded-full object-cover" />
+            <img src={getAvatarUrl(post.user)} alt="" className="h-10 w-10 rounded-full object-cover" />
           </button>
           <div className="flex-1">
-            <button onClick={() => router.push(`/u/${post.user.username}`)}>
-              <p className="text-sm font-semibold text-slate-900">{post.user.username}</p>
-            </button>
+            <button onClick={() => router.push(`/u/${post.user.username}`)}><p className="text-sm font-black text-slate-900">{post.user.username}</p></button>
             {post.location && <p className="text-xs text-slate-500">{post.location}</p>}
           </div>
-          <button><MoreHorizontal className="w-5 h-5 text-slate-500" /></button>
+          {post.community ? <button onClick={() => router.push(`/communities/${post.community?.slug}`)} className="text-xs font-bold text-[#0b1f3a]">{post.community.name}</button> : <span className="text-xs font-bold text-[#667085]">日記</span>}
         </div>
 
-        {/* Image */}
         {imgs.length > 0 && (
-          <div className="w-full aspect-square bg-slate-100 overflow-hidden">
-            <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
+          <div className="aspect-square w-full overflow-hidden bg-[#eef1f4]">
+            <img src={imgs[0]} alt="" className="h-full w-full object-cover" />
           </div>
         )}
 
-        {/* Actions */}
-        <div className="px-4 pt-3 pb-1 flex items-center gap-4">
-          <button onClick={handleLike}>
-            <Heart className={cn("w-7 h-7 transition-all", post.isLiked ? "fill-red-500 text-red-500 scale-110" : "text-slate-800")} strokeWidth={1.8} />
+        <div className="flex items-center gap-4 px-4 pb-1 pt-3">
+          <button onClick={handleLike} aria-label="いいね">
+            <Heart className={cn("h-7 w-7 transition-all", post.isLiked ? "scale-110 fill-[#e85d04] text-[#e85d04]" : "text-slate-800")} strokeWidth={1.8} />
           </button>
-          <button onClick={() => inputRef.current?.focus()}>
-            <MessageCircle className="w-7 h-7 text-slate-800" strokeWidth={1.8} />
+          <button onClick={() => inputRef.current?.focus()} aria-label="コメント">
+            <MessageCircle className="h-7 w-7 text-slate-800" strokeWidth={1.8} />
           </button>
-          <button>
-            <Send className="w-7 h-7 text-slate-800" strokeWidth={1.8} />
-          </button>
+          <button aria-label="シェア"><Send className="h-7 w-7 text-slate-800" strokeWidth={1.8} /></button>
           <div className="flex-1" />
-          <button>
-            <Bookmark className="w-7 h-7 text-slate-800" strokeWidth={1.8} />
-          </button>
+          <button aria-label="保存"><Bookmark className="h-7 w-7 text-slate-800" strokeWidth={1.8} /></button>
         </div>
 
-        <div className="px-4 pb-2">
-          {post.likesCount > 0 && (
-            <p className="text-sm font-bold text-slate-900 mb-1">{post.likesCount.toLocaleString()}件のいいね</p>
+        <div className="px-4 pb-3">
+          {post.likesCount > 0 && <p className="mb-1 text-sm font-black text-slate-900">{post.likesCount.toLocaleString()}件のいいね</p>}
+          {post.caption && <p className="text-sm text-slate-800"><span className="font-black">{post.user.username}</span> {post.caption}</p>}
+          {post.newsArticle && (
+            <button onClick={() => router.push(`/news/${post.newsArticle?.id}`)} className="mt-3 w-full rounded-md border border-[#cfd6de] bg-[#f8fafc] p-3 text-left hover:border-[#0b1f3a]">
+              <div className="mb-1 flex items-center justify-between text-xs"><span className="font-bold text-[#e85d04]">{post.newsArticle.category}</span><span className="text-[#667085]">{post.newsArticle.source}</span></div>
+              <p className="text-sm font-black leading-snug text-[#0b1f3a]">{post.newsArticle.title}</p>
+            </button>
           )}
-          {post.caption && (
-            <p className="text-sm text-slate-800">
-              <span className="font-semibold">{post.user.username}</span>{" "}{post.caption}
-            </p>
-          )}
-          <p className="text-xs text-slate-400 mt-1">{formatTimeAgo(post.createdAt)}</p>
+          <p className="mt-2 flex items-center gap-1 text-xs text-slate-400"><Sparkles className="h-3 w-3 text-[#e85d04]" /> {formatTimeAgo(post.createdAt)}</p>
         </div>
 
-        {/* Comments */}
-        <div className="border-t border-slate-100 divide-y divide-slate-50">
+        <div className="divide-y divide-[#e6e9ed] border-t border-[#dfe3e8]">
           {comments.length === 0 ? (
             <div className="px-4 py-6 text-center">
-              <p className="text-slate-400 text-sm">最初のコメントを投稿しよう</p>
+              <p className="text-sm font-bold text-slate-400">最初のコメントを書いてみよう</p>
             </div>
-          ) : (
-            comments.map(c => (
-              <div key={c.id} className="px-4 py-3 flex gap-3">
-                <button onClick={() => router.push(`/u/${c.user.username}`)}>
-                  <img src={getAvatarUrl(c.user)} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                </button>
-                <div className="flex-1">
-                  <p className="text-sm text-slate-800">
-                    <span className="font-semibold">{c.user.username}</span>{" "}{c.content}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">{formatTimeAgo(c.createdAt)}</p>
-                </div>
+          ) : comments.map(c => (
+            <div key={c.id} className="flex gap-3 px-4 py-3">
+              <button onClick={() => router.push(`/u/${c.user.username}`)}>
+                <img src={getAvatarUrl(c.user)} alt="" className="h-8 w-8 flex-shrink-0 rounded-full object-cover" />
+              </button>
+              <div className="flex-1">
+                <p className="text-sm text-slate-800"><span className="font-black">{c.user.username}</span> {c.content}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{formatTimeAgo(c.createdAt)}</p>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Comment input */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-100 flex-shrink-0">
-        <input
-          ref={inputRef}
-          type="text"
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleComment()}
-          placeholder="コメントを追加..."
-          className="flex-1 text-sm bg-transparent outline-none placeholder-slate-400 text-slate-800"
-        />
-        {comment.trim() && (
-          <button onClick={handleComment} disabled={sending}
-            className="text-blue-500 font-semibold text-sm disabled:opacity-50">
-            投稿
-          </button>
-        )}
+      <div className="flex flex-shrink-0 items-center gap-3 border-t border-[#dfe3e8] px-4 py-3">
+        <input ref={inputRef} type="text" value={comment} onChange={e => setComment(e.target.value)} onKeyDown={e => e.key === "Enter" && handleComment()} placeholder="コメントを追加..." className="flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400" />
+        {comment.trim() && <button onClick={handleComment} disabled={sending} className="text-sm font-bold text-[#0b1f3a] disabled:opacity-50">投稿</button>}
       </div>
     </div>
   )

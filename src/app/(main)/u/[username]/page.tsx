@@ -1,9 +1,10 @@
 "use client"
-import { useState, useEffect, use } from "react"
+
+import { use, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Grid, MoreHorizontal, Loader2 } from "lucide-react"
-import { getAvatarUrl, formatCount } from "@/lib/utils"
-import type { UserProfile, Post } from "@/types"
+import { ChevronLeft, Grid, MessageCircle, MoreHorizontal, Newspaper } from "lucide-react"
+import { formatCount, getAvatarUrl } from "@/lib/utils"
+import type { Post, UserProfile } from "@/types"
 import toast from "react-hot-toast"
 
 export default function UserProfilePage({ params }: { params: Promise<{ username: string }> }) {
@@ -17,155 +18,76 @@ export default function UserProfilePage({ params }: { params: Promise<{ username
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/users/${username}`).then(r => r.json()),
-      fetch(`/api/users/${username}/posts`).then(r => r.json()),
-    ]).then(([p, posts]) => {
-      setProfile(p)
-      setFollowing(p.isFollowing ?? false)
-      setPosts(Array.isArray(posts) ? posts : [])
-    }).catch(() => {}).finally(() => setLoading(false))
+      fetch(`/api/users/${username}`).then(response => response.json()),
+      fetch(`/api/users/${username}/posts`).then(response => response.json()),
+    ]).then(([profileData, postData]) => {
+      setProfile(profileData)
+      setFollowing(profileData.isFollowing ?? false)
+      setPosts(Array.isArray(postData) ? postData : [])
+    }).finally(() => setLoading(false))
   }, [username])
 
-  const handleFollow = async () => {
+  async function handleFollow() {
     if (!profile) return
     setFollowLoading(true)
     try {
-      const res = await fetch(`/api/follow/${profile.id}`, { method: "POST" })
-      const data = await res.json()
+      const response = await fetch(`/api/follow/${profile.id}`, { method: "POST" })
+      const data = await response.json()
       setFollowing(data.following)
-      toast.success(data.following ? `${profile.username}をフォローしました` : "フォローを解除しました")
+      toast.success(data.following ? `${profile.username}さんをフォローしました` : "フォローを解除しました")
     } catch {
-      toast.error("エラーが発生しました")
+      toast.error("操作に失敗しました")
     } finally {
       setFollowLoading(false)
     }
   }
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center">
-      <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
-    </div>
-  )
-  if (!profile) return (
-    <div className="h-full flex items-center justify-center">
-      <p className="text-slate-400">ユーザーが見つかりません</p>
-    </div>
-  )
-
-  if (profile.isMe) {
-    router.replace("/profile")
-    return null
-  }
+  if (loading) return <div className="flex h-full items-center justify-center bg-white text-sm text-[#667085]">読み込み中</div>
+  if (!profile?.id) return <div className="flex h-full items-center justify-center bg-white text-sm text-[#667085]">ユーザーが見つかりません</div>
+  if (profile.isMe) { router.replace("/profile"); return null }
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-2 py-3 border-b border-slate-100">
-        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100">
-          <ChevronLeft className="w-5 h-5 text-slate-700" />
-        </button>
-        <span className="text-base font-bold text-slate-900 flex-1">{profile.username}</span>
-        <button className="p-2 rounded-full hover:bg-slate-100">
-          <MoreHorizontal className="w-5 h-5 text-slate-700" />
-        </button>
-      </div>
+    <div className="flex h-full flex-col overflow-y-auto bg-white">
+      <header className="flex items-center gap-3 border-b border-[#dfe3e8] px-2 py-3">
+        <button onClick={() => router.back()} className="rounded-md p-2 hover:bg-[#f2f4f7]" aria-label="戻る"><ChevronLeft className="h-5 w-5" /></button>
+        <h1 className="flex-1 font-black text-[#0b1f3a]">{profile.username}</h1>
+        <button className="rounded-md p-2 hover:bg-[#f2f4f7]" aria-label="メニュー"><MoreHorizontal className="h-5 w-5" /></button>
+      </header>
 
-      {/* Profile info */}
-      <div className="px-4 pt-5 pb-4">
-        <div className="flex items-center gap-6 mb-4">
-          <img
-            src={getAvatarUrl(profile)}
-            alt={profile.name}
-            className="w-20 h-20 rounded-full object-cover border-2 border-slate-100"
-          />
-          <div className="flex-1 flex justify-around">
+      <section className="border-b border-[#dfe3e8] px-4 pb-4 pt-5">
+        <div className="mb-4 flex items-center gap-5">
+          <img src={getAvatarUrl(profile)} alt={profile.name} className="h-[88px] w-[88px] rounded-full border border-[#dfe3e8] object-cover" />
+          <div className="grid flex-1 grid-cols-3 gap-2 text-center">
             {[
               { label: "投稿", value: profile.postsCount ?? posts.length },
               { label: "フォロワー", value: profile.followersCount ?? 0 },
               { label: "フォロー中", value: profile.followingCount ?? 0 },
-            ].map(({ label, value }) => (
-              <div key={label} className="text-center">
-                <p className="text-lg font-bold text-slate-900">{formatCount(value)}</p>
-                <p className="text-xs text-slate-500">{label}</p>
-              </div>
-            ))}
+            ].map(item => <div key={item.label}><p className="text-lg font-black text-[#111827]">{formatCount(item.value)}</p><p className="text-[10px] font-bold text-[#667085]">{item.label}</p></div>)}
           </div>
         </div>
+        <p className="text-sm font-black text-[#111827]">{profile.name}</p>
+        {profile.bio && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-[#344054]">{profile.bio}</p>}
+        {profile.website && <a href={profile.website} target="_blank" rel="noopener noreferrer" className="mt-1 block text-sm font-bold text-[#0b1f3a] hover:underline">{profile.website.replace(/^https?:\/\//, "")}</a>}
 
-        <div className="mb-4">
-          <p className="font-semibold text-slate-900 text-sm">{profile.name}</p>
-          {profile.bio && <p className="text-sm text-slate-700 leading-snug mt-0.5 whitespace-pre-line">{profile.bio}</p>}
-          {profile.website && (
-            <a href={profile.website} target="_blank" rel="noopener noreferrer"
-              className="text-sm text-blue-600 font-medium mt-0.5 block">
-              {profile.website.replace(/^https?:\/\//, "")}
-            </a>
-          )}
+        <div className="mt-4 flex gap-2">
+          <button onClick={handleFollow} disabled={followLoading} className={`flex-1 rounded-md py-2 text-sm font-bold ${following ? "border border-[#d0d5dd] text-[#344054]" : "bg-[#0b1f3a] text-white"}`}>{followLoading ? "..." : following ? "フォロー中" : "フォロー"}</button>
+          <button onClick={async () => {
+            const response = await fetch("/api/dm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetUserId: profile.id }) })
+            const data = await response.json()
+            router.push(`/messages/${data.id}`)
+          }} className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[#0b1f3a] py-2 text-sm font-bold text-[#0b1f3a]"><MessageCircle className="h-4 w-4" />メッセージ</button>
         </div>
+      </section>
 
-        <div className="flex gap-2">
-          <button
-            onClick={handleFollow}
-            disabled={followLoading}
-            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              following
-                ? "border border-slate-300 text-slate-800 bg-white hover:bg-slate-50"
-                : "bg-blue-500 text-white hover:bg-blue-600"
-            }`}
-          >
-            {followLoading ? "..." : following ? "フォロー中" : "フォローする"}
-          </button>
-          <button
-            onClick={async () => {
-              const res = await fetch("/api/dm", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ targetUserId: profile.id }),
-              })
-              const data = await res.json()
-              router.push(`/messages/${data.id}`)
-            }}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold border border-slate-300 text-slate-800 bg-white hover:bg-slate-50 transition-colors">
-            メッセージ
-          </button>
-        </div>
-      </div>
-
-      {/* Posts tab */}
-      <div className="flex border-t border-slate-100">
-        <div className="flex-1 py-3 flex justify-center border-t-2 border-slate-900">
-          <Grid className="w-5 h-5 text-slate-900" />
-        </div>
-      </div>
-
-      {/* Posts grid */}
-      {posts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-16 h-16 rounded-full border-2 border-slate-300 flex items-center justify-center mb-3">
-            <Grid className="w-8 h-8 text-slate-300" />
-          </div>
-          <p className="text-slate-500 text-sm">まだ投稿がありません</p>
-        </div>
-      ) : (
+      <div className="flex justify-center border-b border-[#dfe3e8] py-3"><Grid className="h-5 w-5 text-[#0b1f3a]" /></div>
+      {posts.length === 0 ? <p className="px-8 py-16 text-center text-sm font-bold text-[#667085]">まだ投稿はありません</p> : (
         <div className="grid grid-cols-3 gap-0.5">
-          {posts.map(post => {
-            const imgs = post.images || []
-            return (
-              <button key={post.id} onClick={() => router.push(`/post/${post.id}`)}
-                className="aspect-square bg-slate-100 overflow-hidden relative">
-                {imgs[0]
-                  ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full bg-gradient-to-br from-blue-100 to-cyan-100" />}
-                {imgs.length > 1 && (
-                  <div className="absolute top-1.5 right-1.5">
-                    <div className="w-4 h-4 bg-black/40 rounded-sm flex items-center justify-center">
-                      <span className="text-white text-[8px] font-bold">+</span>
-                    </div>
-                  </div>
-                )}
-              </button>
-            )
-          })}
+          {posts.map(post => (
+            <button key={post.id} onClick={() => router.push(`/post/${post.id}`)} className="relative aspect-square overflow-hidden bg-[#eef1f4]">
+              {post.images?.[0] ? <img src={post.images[0]} alt="" className="h-full w-full object-cover" /> : post.newsArticle ? <div className="flex h-full flex-col items-center justify-center p-3 text-center"><Newspaper className="mb-2 h-6 w-6 text-[#e85d04]" /><p className="line-clamp-2 text-xs font-black text-[#0b1f3a]">{post.newsArticle.title}</p></div> : null}
+              {(post.images?.length || 0) > 1 && <span className="absolute right-1.5 top-1.5 rounded bg-black/55 px-1 text-[10px] font-bold text-white">+{post.images.length - 1}</span>}
+            </button>
+          ))}
         </div>
       )}
     </div>

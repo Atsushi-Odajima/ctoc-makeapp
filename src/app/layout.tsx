@@ -12,31 +12,25 @@ const notoSansJP = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: "Feeld",
-  description: "平成SNS",
+  title: "ハレノワ",
+  description: "写真、日記、コミュニティ、足あとでゆるくつながる日本向けSNS",
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/favicon-16.png", sizes: "16x16",  type: "image/png" },
-      { url: "/favicon-32.png", sizes: "32x32",  type: "image/png" },
-      { url: "/favicon-48.png", sizes: "48x48",  type: "image/png" },
-      { url: "/favicon.ico",    sizes: "any",     type: "image/x-icon" },
-      { url: "/favicon.svg",    type: "image/svg+xml" },
-      { url: "/icon-192.png",   sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png",   sizes: "512x512", type: "image/png" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/apple-touch-icon.png",     sizes: "180x180" },
-      { url: "/icon-120.png",             sizes: "120x120" },
-      { url: "/icon-152.png",             sizes: "152x152" },
-      { url: "/icon-167.png",             sizes: "167x167" },
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
+      { url: "/icon-120.png", sizes: "120x120" },
+      { url: "/icon-152.png", sizes: "152x152" },
+      { url: "/icon-167.png", sizes: "167x167" },
       { url: "/apple-touch-icon-180.png", sizes: "180x180" },
     ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Feeld",
+    title: "ハレノワ",
   },
 }
 
@@ -46,7 +40,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#2563EB",
+  themeColor: "#0B1F3A",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -59,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             position="top-center"
             toastOptions={{
               duration: 3000,
-              style: { borderRadius: "16px", background: "#1E293B", color: "#fff" },
+              style: { borderRadius: "6px", background: "#0B1F3A", color: "#fff" },
             }}
           />
         </SessionProvider>

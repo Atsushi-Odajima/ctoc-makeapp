@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Loader2 } from "lucide-react"
 import { getAvatarUrl } from "@/lib/utils"
@@ -24,10 +24,14 @@ export default function EditProfilePage() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
 
   useEffect(() => {
-    fetch("/api/profile").then(r => r.json()).then((p: UserProfile) => {
-      setProfile(p)
-      setForm({ name: p.name || "", bio: p.bio || "", website: p.website || "", avatar: p.avatar || "" })
-    }).catch(() => toast.error("プロフィールの読み込みに失敗しました")).finally(() => setLoading(false))
+    fetch("/api/profile")
+      .then(r => r.json())
+      .then((p: UserProfile) => {
+        setProfile(p)
+        setForm({ name: p.name || "", bio: p.bio || "", website: p.website || "", avatar: p.avatar || "" })
+      })
+      .catch(() => toast.error("プロフィールの読み込みに失敗しました"))
+      .finally(() => setLoading(false))
   }, [])
 
   const handleSave = async () => {
@@ -48,49 +52,32 @@ export default function EditProfilePage() {
     }
   }
 
-  if (loading) return (
-    <div className="h-full flex items-center justify-center">
-      <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
-    </div>
-  )
+  if (loading) return <div className="flex h-full items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-[#0b1f3a]" /></div>
 
   return (
-    <div className="h-full flex flex-col bg-white overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-2 py-3 border-b border-slate-100">
-        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100">
-          <ChevronLeft className="w-5 h-5 text-slate-700" />
+    <div className="flex h-full flex-col overflow-y-auto bg-white">
+      <div className="flex items-center gap-3 border-b border-[#dfe3e8] px-2 py-3">
+        <button onClick={() => router.back()} className="rounded-md p-2 hover:bg-[#f2f4f7]" aria-label="戻る">
+          <ChevronLeft className="h-5 w-5 text-slate-700" />
         </button>
-        <span className="flex-1 text-base font-bold text-slate-900">プロフィールを編集</span>
-        <button onClick={handleSave} disabled={saving}
-          className="text-blue-500 font-semibold text-sm disabled:opacity-50 px-2">
+        <span className="flex-1 text-base font-black text-slate-900">プロフィールを編集</span>
+        <button onClick={handleSave} disabled={saving} className="px-2 text-sm font-bold text-[#0b1f3a] disabled:opacity-50">
           {saving ? "保存中..." : "完了"}
         </button>
       </div>
 
-      <div className="flex-1 px-4 py-6 space-y-6">
-        {/* Avatar */}
+      <div className="flex-1 space-y-6 px-4 py-6">
         <div className="flex flex-col items-center gap-3">
-          <div className="relative">
-            <img
-              src={form.avatar ? form.avatar : (profile ? getAvatarUrl({ ...profile, avatar: null }) : "")}
-              alt=""
-              className="w-20 h-20 rounded-full object-cover border-2 border-slate-100"
-            />
-          </div>
-          <button onClick={() => setShowAvatarPicker(v => !v)}
-            className="text-blue-500 font-semibold text-sm">
-            プロフィール写真を変更
-          </button>
+          <img src={form.avatar ? form.avatar : (profile ? getAvatarUrl({ ...profile, avatar: null }) : "")} alt="" className="h-20 w-20 rounded-full border-2 border-[#dfe3e8] object-cover" />
+          <button onClick={() => setShowAvatarPicker(v => !v)} className="text-sm font-bold text-[#0b1f3a]">プロフィール写真を変更</button>
 
           {showAvatarPicker && (
             <div className="w-full">
-              <p className="text-xs text-slate-500 mb-2 text-center">アバターを選択</p>
+              <p className="mb-2 text-center text-xs font-bold text-slate-500">アバターを選択</p>
               <div className="grid grid-cols-3 gap-2">
-                {AVATAR_OPTIONS.map((url, i) => (
-                  <button key={i} onClick={() => { setForm(f => ({...f, avatar: url})); setShowAvatarPicker(false) }}
-                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${form.avatar === url ? "border-blue-500" : "border-transparent"}`}>
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                {AVATAR_OPTIONS.map(url => (
+                  <button key={url} onClick={() => { setForm(f => ({ ...f, avatar: url })); setShowAvatarPicker(false) }} className={`aspect-square overflow-hidden rounded-md border-2 ${form.avatar === url ? "border-[#0b1f3a]" : "border-transparent"}`}>
+                    <img src={url} alt="" className="h-full w-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -98,49 +85,27 @@ export default function EditProfilePage() {
           )}
         </div>
 
-        {/* Fields */}
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">名前</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={e => setForm(f => ({...f, name: e.target.value}))}
-              placeholder="名前"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-            />
+            <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">名前</label>
+            <input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="名前" className="w-full rounded-md border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0b1f3a]" />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">自己紹介</label>
-            <textarea
-              value={form.bio}
-              onChange={e => setForm(f => ({...f, bio: e.target.value}))}
-              placeholder="自己紹介を入力..."
-              rows={4}
-              maxLength={150}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none"
-            />
-            <p className="text-right text-xs text-slate-400 mt-1">{form.bio.length}/150</p>
+            <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">自己紹介</label>
+            <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} placeholder="好きなもの、最近ハマっていることなど" rows={4} maxLength={150} className="w-full resize-none rounded-md border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0b1f3a]" />
+            <p className="mt-1 text-right text-xs text-slate-400">{form.bio.length}/150</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">ウェブサイト</label>
-            <input
-              type="url"
-              value={form.website}
-              onChange={e => setForm(f => ({...f, website: e.target.value}))}
-              placeholder="https://example.com"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
-            />
+            <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">ウェブサイト</label>
+            <input type="url" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} placeholder="https://example.com" className="w-full rounded-md border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none focus:border-[#0b1f3a]" />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">ユーザーネーム</label>
-            <div className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-400 bg-slate-50">
-              @{profile?.username}
-            </div>
-            <p className="text-xs text-slate-400 mt-1">ユーザーネームは変更できません</p>
+            <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">ユーザー名</label>
+            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">@{profile?.username}</div>
+            <p className="mt-1 text-xs text-slate-400">ユーザー名は現在変更できません。</p>
           </div>
         </div>
       </div>

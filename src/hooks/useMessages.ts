@@ -7,12 +7,15 @@ export function useMessages(conversationId: string) {
 
   useEffect(() => {
     if (!conversationId) return
-    setLoading(true)
-    fetch(`/api/dm/${conversationId}`)
-      .then(r => r.json())
-      .then(data => setMessages(data.messages || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    const t = setTimeout(() => {
+      setLoading(true)
+      fetch(`/api/dm/${conversationId}`)
+        .then(r => r.json())
+        .then(data => setMessages(data.messages || []))
+        .catch(() => {})
+        .finally(() => setLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [conversationId])
 
   const sendMessage = useCallback(async (content: string) => {

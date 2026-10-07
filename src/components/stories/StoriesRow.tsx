@@ -1,9 +1,8 @@
 "use client"
 import { useState } from "react"
-import { Plus } from "lucide-react"
-import { getAvatarUrl } from "@/lib/utils"
-import { cn } from "@/lib/utils"
+import { Plus, X } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
+import { cn, getAvatarUrl } from "@/lib/utils"
 
 interface StoryGroup {
   user: { id: string; name: string; username: string; avatar: string | null }
@@ -19,8 +18,13 @@ export function StoriesRow({ stories, currentUser }: Props) {
   const [viewing, setViewing] = useState<StoryGroup | null>(null)
   const [storyIndex, setStoryIndex] = useState(0)
 
-  function openStory(group: StoryGroup) { setViewing(group); setStoryIndex(0) }
-  function closeStory() { setViewing(null) }
+  function openStory(group: StoryGroup) {
+    setViewing(group)
+    setStoryIndex(0)
+  }
+  function closeStory() {
+    setViewing(null)
+  }
   function nextStory() {
     if (viewing && storyIndex < viewing.stories.length - 1) setStoryIndex(i => i + 1)
     else closeStory()
@@ -29,56 +33,58 @@ export function StoriesRow({ stories, currentUser }: Props) {
   return (
     <>
       <div className="flex gap-4 overflow-x-auto px-3 py-3 scrollbar-hide">
-        {/* My story */}
-        <button className="flex flex-col items-center gap-1.5 flex-shrink-0">
+        <button className="flex flex-shrink-0 flex-col items-center gap-1.5">
           <div className="relative">
-            <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-slate-200">
-              <img src={getAvatarUrl({ avatar: currentUser.avatar, name: currentUser.name })} alt="You" className="w-full h-full object-cover" />
+            <div className="h-16 w-16 overflow-hidden rounded-full ring-2 ring-[#dfe3e8]">
+              <img src={getAvatarUrl({ avatar: currentUser.avatar, name: currentUser.name })} alt="あなた" className="h-full w-full object-cover" />
             </div>
-            <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white">
-              <Plus className="w-3 h-3 text-white" strokeWidth={3} />
+            <div className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-[#e85d04]">
+              <Plus className="h-3 w-3 text-white" strokeWidth={3} />
             </div>
           </div>
-          <span className="text-xs text-slate-500 font-medium">あなた</span>
+          <span className="text-xs font-semibold text-slate-500">あなた</span>
         </button>
 
-        {/* Others' stories */}
         {stories.map(group => (
-          <button key={group.user.id} onClick={() => openStory(group)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
-            <div className="w-16 h-16 rounded-full p-0.5 bg-gradient-to-tr from-blue-600 via-cyan-500 to-blue-400">
-              <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
-                <img src={getAvatarUrl(group.user)} alt={group.user.name} className="w-full h-full object-cover rounded-full" />
+          <button key={group.user.id} onClick={() => openStory(group)} className="flex flex-shrink-0 flex-col items-center gap-1.5">
+            <div className="h-16 w-16 rounded-full bg-[#0b1f3a] p-0.5">
+              <div className="h-full w-full rounded-full bg-white p-0.5">
+                <img src={getAvatarUrl(group.user)} alt={group.user.name} className="h-full w-full rounded-full object-cover" />
               </div>
             </div>
-            <span className="text-xs text-slate-700 font-medium max-w-[64px] truncate">{group.user.username}</span>
+            <span className="max-w-[64px] truncate text-xs font-semibold text-slate-700">{group.user.username}</span>
           </button>
         ))}
       </div>
 
-      {/* Story viewer */}
       <AnimatePresence>
         {viewing && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black flex items-center justify-center max-w-lg mx-auto"
-            onClick={nextStory}>
-            {/* Progress bars */}
-            <div className="absolute top-3 left-3 right-3 flex gap-1 z-10">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 mx-auto flex max-w-lg items-center justify-center bg-black"
+            onClick={nextStory}
+          >
+            <div className="absolute left-3 right-3 top-3 z-10 flex gap-1">
               {viewing.stories.map((_, i) => (
-                <div key={i} className="flex-1 h-0.5 bg-white/30 rounded-full overflow-hidden">
-                  <div className={cn("h-full bg-white rounded-full", i < storyIndex ? "w-full" : i === storyIndex ? "animate-story-progress" : "w-0")} />
+                <div key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30">
+                  <div className={cn("h-full rounded-full bg-white", i < storyIndex ? "w-full" : i === storyIndex ? "animate-story-progress" : "w-0")} />
                 </div>
               ))}
             </div>
-            {/* User info */}
-            <div className="absolute top-8 left-3 right-3 flex items-center gap-3 z-10">
-              <img src={getAvatarUrl(viewing.user)} alt="" className="w-8 h-8 rounded-full border-2 border-white object-cover" />
-              <span className="text-white font-semibold text-sm">{viewing.user.username}</span>
-              <button onClick={(e) => { e.stopPropagation(); closeStory() }} className="ml-auto text-white text-2xl font-light">✕</button>
+            <div className="absolute left-3 right-3 top-8 z-10 flex items-center gap-3">
+              <img src={getAvatarUrl(viewing.user)} alt="" className="h-8 w-8 rounded-full border-2 border-white object-cover" />
+              <div>
+                <span className="text-sm font-bold text-white">{viewing.user.username}</span>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); closeStory() }} className="ml-auto rounded-full bg-white/15 p-1.5 text-white" aria-label="閉じる">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            {/* Image */}
-            <img src={viewing.stories[storyIndex].imageUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+            <img src={viewing.stories[storyIndex].imageUrl} alt="" className="h-full w-full object-cover" draggable={false} />
             {viewing.stories[storyIndex].caption && (
-              <div className="absolute bottom-8 left-4 right-4 text-center text-white font-medium text-sm bg-black/30 rounded-xl px-3 py-2">
+              <div className="absolute bottom-8 left-4 right-4 rounded-2xl bg-black/35 px-3 py-2 text-center text-sm font-semibold text-white backdrop-blur">
                 {viewing.stories[storyIndex].caption}
               </div>
             )}

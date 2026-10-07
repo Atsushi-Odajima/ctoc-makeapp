@@ -33,6 +33,8 @@ const adapter = {
   },
 }
 
+const authSecret = process.env.NEXTAUTH_SECRET || (process.env.NODE_ENV === "development" ? "harenowa-local-dev-secret-change-me" : undefined)
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const { handlers, auth, signIn, signOut } = (NextAuth as any)({
   adapter,
@@ -54,6 +56,7 @@ export const { handlers, auth, signIn, signOut } = (NextAuth as any)({
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username,
           onboardingDone: user.onboardingDone,
         }
       },
@@ -76,12 +79,14 @@ export const { handlers, auth, signIn, signOut } = (NextAuth as any)({
     async jwt({ token, user, account }: { token: any; user: any; account: any }) {
       if (user) {
         token.id = user.id
+        token.username = user.username
         token.onboardingDone = (user as { onboardingDone?: boolean }).onboardingDone
       }
       if (account && account.provider !== "credentials") {
         const dbUser = await prisma.user.findUnique({ where: { email: token.email! } })
         if (dbUser) {
           token.id = dbUser.id
+          token.username = dbUser.username
           token.onboardingDone = dbUser.onboardingDone
         }
       }
@@ -102,7 +107,7 @@ export const { handlers, auth, signIn, signOut } = (NextAuth as any)({
     error: "/login",
   },
   session: { strategy: "jwt" },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
 })
 
 export const { GET, POST } = handlers

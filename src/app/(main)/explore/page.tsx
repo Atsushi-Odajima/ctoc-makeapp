@@ -1,83 +1,108 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
+
+import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Search, X, Loader2 } from "lucide-react"
-import { parseImages, getAvatarUrl } from "@/lib/utils"
-import type { Post, UserProfile } from "@/types"
+import { Camera, Flame, Search, UsersRound, X } from "lucide-react"
+import { getAvatarUrl } from "@/lib/utils"
+import type { Community, Post, UserProfile } from "@/types"
+
+const topics = [
+  { tag: "#カフェ部", count: "24.1万" },
+  { tag: "#平成っぽ日記", count: "9.8万" },
+  { tag: "#推しのいる生活", count: "38.2万" },
+  { tag: "#地元の好き", count: "6.5万" },
+]
 
 export default function ExplorePage() {
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [posts, setPosts] = useState<Post[]>([])
   const [users, setUsers] = useState<UserProfile[]>([])
+  const [communities, setCommunities] = useState<Community[]>([])
   const [loading, setLoading] = useState(true)
-  const [searching, setSearching] = useState(false)
 
-  const fetchExplore = useCallback(async (q = "") => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/explore${q ? `?q=${encodeURIComponent(q)}` : ""}`)
-      const data = await res.json()
-      setPosts(data.posts || [])
-      setUsers(data.users || [])
-    } catch { /* ignore */ }
-    finally { setLoading(false); setSearching(false) }
+  const fetchExplore = useCallback(async (value = "") => {
+    const response = await fetch(`/api/explore${value ? `?q=${encodeURIComponent(value)}` : ""}`)
+    const data = await response.json()
+    setPosts(data.posts || [])
+    setUsers(data.users || [])
+    setLoading(false)
   }, [])
 
-  useEffect(() => { fetchExplore() }, [fetchExplore])
+  useEffect(() => {
+    fetch("/api/communities?limit=4").then(response => response.json()).then(data => setCommunities(Array.isArray(data) ? data : [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
-    const t = setTimeout(() => { setSearching(true); fetchExplore(query) }, 400)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => fetchExplore(query), 300)
+    return () => clearTimeout(timer)
   }, [query, fetchExplore])
 
   return (
-    <div className="h-full flex flex-col bg-[#FAFAFA]">
-      {/* Search bar */}
-      <div className="bg-white px-3 pt-3 pb-2 border-b border-slate-100 flex-shrink-0">
+    <div className="flex h-full flex-col bg-white">
+      <header className="border-b border-[#dfe3e8] bg-white p-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="ユーザーや投稿を検索..."
-            className="w-full pl-9 pr-9 py-2.5 bg-slate-100 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-all" />
-          {query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="w-4 h-4 text-slate-400" /></button>}
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]" />
+          <input value={query} onChange={event => setQuery(event.target.value)} placeholder="ユーザー、投稿、好きなものを検索" className="w-full rounded-md border border-[#d0d5dd] bg-[#f8fafc] py-2.5 pl-9 pr-9 text-sm outline-none focus:border-[#0b1f3a] focus:bg-white" />
+          {query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2" aria-label="クリア"><X className="h-4 w-4 text-[#667085]" /></button>}
         </div>
-      </div>
+      </header>
 
       <div className="flex-1 overflow-y-auto">
-        {loading && !searching ? (
-          <div className="flex items-center justify-center py-20"><Loader2 className="w-10 h-10 text-blue-500 animate-spin" /></div>
-        ) : query && users.length > 0 ? (
-          <div className="divide-y divide-slate-50">
-            {users.map(u => (
-              <button key={u.id} onClick={() => router.push(`/u/${u.username}`)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                <img src={getAvatarUrl(u)} alt={u.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
-                <div className="flex-1 text-left">
-                  <p className="font-semibold text-slate-800 text-sm">{u.username}</p>
-                  <p className="text-slate-500 text-xs">{u.name}</p>
-                  {u.bio && <p className="text-slate-400 text-xs truncate mt-0.5">{u.bio}</p>}
-                </div>
+        {loading ? (
+          <p className="py-20 text-center text-sm text-[#667085]">読み込み中</p>
+        ) : query ? (
+          <div className="divide-y divide-[#e6e9ed]">
+            {users.length === 0 ? <p className="px-6 py-12 text-center text-sm text-[#667085]">まだ見つかりません</p> : users.map(user => (
+              <button key={user.id} onClick={() => router.push(`/u/${user.username}`)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-[#f8fafc]">
+                <img src={getAvatarUrl(user)} alt={user.name} className="h-12 w-12 rounded-full border border-[#dfe3e8] object-cover" />
+                <div className="min-w-0 flex-1"><p className="text-sm font-black text-[#0b1f3a]">{user.username}</p><p className="text-xs text-[#667085]">{user.name}</p>{user.bio && <p className="mt-0.5 truncate text-xs text-[#98a2b3]">{user.bio}</p>}</div>
+                <span className="text-xs font-bold text-[#0b1f3a]">見る</span>
               </button>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-0.5">
-            {posts.map(post => {
-              const imgs = post.images || []
-              return (
-                <button key={post.id} onClick={() => router.push(`/post/${post.id}`)}
-                  className="aspect-square bg-slate-200 overflow-hidden relative">
-                  {imgs[0] ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full bg-gradient-to-br from-blue-100 to-cyan-100" />}
-                  {imgs.length > 1 && (
-                    <div className="absolute top-1 right-1 w-4 h-4 bg-black/50 rounded-full flex items-center justify-center">
-                      <span className="text-white text-[8px]">+</span>
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <section className="border-b border-[#dfe3e8] p-4">
+              <div className="mb-3 flex items-center gap-2"><Flame className="h-5 w-5 text-[#e85d04]" /><h2 className="font-black text-[#0b1f3a]">いま伸びている話題</h2></div>
+              <div className="grid grid-cols-2 gap-2">
+                {topics.map(topic => (
+                  <button key={topic.tag} className="rounded-md border border-[#dfe3e8] p-3 text-left hover:bg-[#f8fafc]">
+                    <p className="text-sm font-black text-[#0b1f3a]">{topic.tag}</p>
+                    <p className="mt-1 text-xs text-[#667085]">{topic.count}件</p>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="border-b border-[#dfe3e8] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2"><UsersRound className="h-5 w-5 text-[#0b1f3a]" /><h2 className="font-black text-[#0b1f3a]">コミュニティ</h2></div>
+                <Link href="/communities" className="text-xs font-bold text-[#0b1f3a] hover:underline">すべて見る</Link>
+              </div>
+              <div className="space-y-2">
+                {communities.map(community => (
+                  <Link key={community.id} href={`/communities/${community.slug}`} className="flex items-center justify-between rounded-md border border-[#dfe3e8] px-3 py-3 hover:bg-[#f8fafc]">
+                    <div><p className="text-sm font-black text-[#0b1f3a]">{community.name}</p><p className="text-xs text-[#667085]">{community.memberCount}人 ・ {community.postCount}件</p></div>
+                    <span className="text-xs font-bold text-[#0b1f3a]">見る</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center gap-2 px-4 py-3"><Camera className="h-5 w-5 text-[#0b1f3a]" /><h2 className="font-black text-[#0b1f3a]">写真から見つける</h2></div>
+              <div className="grid grid-cols-3 gap-0.5">
+                {posts.filter(post => post.images?.[0]).map(post => (
+                  <button key={post.id} onClick={() => router.push(`/post/${post.id}`)} className="relative aspect-square overflow-hidden bg-[#eef1f4]">
+                    <img src={post.images[0]} alt="" className="h-full w-full object-cover" />
+                    {post.images.length > 1 && <span className="absolute right-1 top-1 rounded bg-black/55 px-1.5 text-[10px] font-bold text-white">+{post.images.length - 1}</span>}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
         )}
       </div>
     </div>

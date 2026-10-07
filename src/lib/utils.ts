@@ -8,8 +8,8 @@ export function cn(...inputs: ClassValue[]) {
 export function formatTimeAgo(date: string | Date): string {
   const now = new Date()
   const past = new Date(date)
-  const diffSecs = Math.floor((now.getTime() - past.getTime()) / 1000)
-  if (diffSecs < 60) return "今"
+  const diffSecs = Math.max(0, Math.floor((now.getTime() - past.getTime()) / 1000))
+  if (diffSecs < 60) return "たった今"
   const diffMins = Math.floor(diffSecs / 60)
   if (diffMins < 60) return `${diffMins}分前`
   const diffHours = Math.floor(diffMins / 60)
@@ -17,7 +17,7 @@ export function formatTimeAgo(date: string | Date): string {
   const diffDays = Math.floor(diffHours / 24)
   if (diffDays < 7) return `${diffDays}日前`
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}週間前`
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}ヶ月前`
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}か月前`
   return `${Math.floor(diffDays / 365)}年前`
 }
 
@@ -44,12 +44,14 @@ export function parseImages(images: string | string[]): string[] {
 
 export function getAvatarUrl(user: { avatar?: string | null; name: string; username?: string }): string {
   if (user.avatar) return user.avatar
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=2563EB&color=fff&rounded=true&size=150`
+  const seed = encodeURIComponent(user.username || user.name || "harenowa")
+  return `https://api.dicebear.com/9.x/thumbs/svg?seed=${seed}&backgroundColor=ffe0ec,d1f4ff,fef3c7,dcfce7&radius=50`
 }
 
 export function formatCount(n: number): string {
-  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1).replace(/\.0$/, "")}億`
+  if (n >= 10000) return `${(n / 10000).toFixed(1).replace(/\.0$/, "")}万`
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`
   return n.toString()
 }
 

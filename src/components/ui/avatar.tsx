@@ -38,7 +38,7 @@ export function Avatar({ src, name, size = 'md', className, online }: AvatarProp
       ) : (
         <div
           className={cn(
-            'rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold w-full h-full'
+            'rounded-full bg-[#0b1f3a] flex items-center justify-center text-white font-semibold w-full h-full'
           )}
         >
           {initials}

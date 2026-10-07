@@ -30,6 +30,32 @@ export interface Post {
   commentsCount: number
   isLiked: boolean
   isSaved?: boolean
+  newsArticle?: {
+    id: string
+    title: string
+    link: string
+    source: string
+    category: string
+    publishedAt: string
+  } | null
+  community?: Pick<Community, "id" | "slug" | "name"> | null
+}
+
+export interface Community {
+  id: string
+  slug: string
+  name: string
+  description: string
+  category: string
+  coverImage?: string | null
+  isPrivate: boolean
+  memberCount: number
+  postCount: number
+  isMember: boolean
+  role?: string | null
+  owner?: Pick<UserProfile, "id" | "name" | "username" | "avatar"> | null
+  members?: Array<Pick<UserProfile, "id" | "name" | "username" | "avatar">>
+  posts?: Post[]
 }
 
 export interface Comment {

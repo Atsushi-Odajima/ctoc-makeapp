@@ -5,8 +5,8 @@
 }
 
 :root {
-  --background: #F0F4FF;
-  --foreground: #1E293B;
+  --background: #f5f6f8;
+  --foreground: #111827;
 }
 
 * {
@@ -19,15 +19,15 @@ html {
 }
 
 body {
-  background-color: var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-noto), "Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  letter-spacing: 0;
 }
 
-/* Safe area support */
 .pt-safe {
   padding-top: env(safe-area-inset-top);
 }
@@ -36,7 +36,6 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -46,11 +45,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: #98a2b3;
   border-radius: 2px;
 }
 
-/* Line clamp utility */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -58,7 +64,19 @@ body {
   overflow: hidden;
 }
 
-/* Card shadow */
 .card-shadow {
-  box-shadow: 0 4px 24px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 4px 18px rgba(11, 31, 58, 0.08);
+}
+
+@keyframes story-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-story-progress {
+  animation: story-progress 5s linear forwards;
 }
