@@ -31,9 +31,9 @@ export function canViewPostPure(input: PostAccessInput): boolean {
   const { viewerId, post, author, community, viewer } = input
   const isOwner = viewerId !== null && viewerId === post.userId
   if (post.status === "DELETED" || post.deletedAt) return false
+  if (author.status !== "ACTIVE") return false // suspended/deleted accounts' posts are hidden from everyone
   if (isOwner) return true // owner sees own drafts / processing / hidden posts
   if (post.status !== "PUBLISHED" || post.hiddenAt) return false
-  if (author.status !== "ACTIVE") return false
   if (viewerId && viewer.blockedEitherWay) return false
 
   if (post.communityId) {

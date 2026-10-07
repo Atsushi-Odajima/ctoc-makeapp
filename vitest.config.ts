@@ -18,6 +18,8 @@ export default defineConfig({
           globalSetup: ["tests/helpers/global-setup.ts"],
           setupFiles: ["tests/helpers/setup-integration.ts"],
           fileParallelism: false,
+          pool: "forks",
+          poolOptions: { forks: { singleFork: true } },
           testTimeout: 30_000,
           hookTimeout: 60_000,
           env: {
