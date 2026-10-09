@@ -1,62 +1,84 @@
 "use client"
 
+import Link from "next/link"
 import { Avatar } from "@/components/ui/Avatar"
-import { DayNetMark } from "@/components/brand/DayNetMark"
 import { Icon } from "@/components/ui/Icon"
+import { formatCount } from "@/lib/client/format"
 import type { PublicUser } from "@/lib/dto/user"
 
-// Lilac profile panel (radius 18, padding 20). Order is fixed by the spec:
-// avatar + name → bio → イキリポイント → 残念な弱点 → 趣味3つ. These are public profile info.
-export function ProfileHero({ user }: { user: Pick<PublicUser, "id" | "name" | "username" | "avatar" | "bio" | "website" | "strength" | "weakness" | "hobbies" | "isPrivate"> }) {
+type HeroUser = Pick<PublicUser, "id" | "name" | "username" | "avatar" | "bio" | "website" | "strength" | "weakness" | "hobbies" | "isPrivate"> & { counts?: PublicUser["counts"] }
+
+// Priority: avatar + name → numbers (one compact line) → bio → the three DayNet facts. No panel
+// around it; the facts are a quiet definition list so the posts below come into view early.
+export function ProfileHero({ user, actions }: { user: HeroUser; actions?: React.ReactNode }) {
+  // One DOM, two arrangements: phones put the avatar beside the name and stack the rest below;
+  // desktop keeps the avatar in its own column with name → actions → facts to its right.
   return (
-    <section className="relative overflow-hidden rounded-[18px] bg-lilac p-5" aria-label="プロフィール">
-      <div className="pointer-events-none absolute -right-[30px] -top-[36px] opacity-20" aria-hidden>
-        <DayNetMark size={176} />
+    <section aria-labelledby="profile-name" className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 px-[var(--gutter)] pt-3 desktop:grid-cols-[246px_minmax(0,1fr)] desktop:gap-x-8 desktop:px-0 desktop:pt-8">
+      <div className="self-center desktop:row-span-3 desktop:self-start desktop:justify-self-center">
+        <span className="desktop:hidden"><Avatar user={user} size={84} decorative={false} /></span>
+        <span className="hidden desktop:block" aria-hidden><Avatar user={user} size={150} /></span>
       </div>
-      <div className="relative flex items-center gap-[13px]">
-        <span className="rounded-[19px] border-[3px] border-canvas">
-          <Avatar user={user} size={60} decorative={false} />
-        </span>
-        <div className="min-w-0">
-          <h1 className="truncate text-[25px] font-bold leading-[37px] tracking-[-0.025em]">{user.name || user.username}</h1>
-          <p className="flex items-center gap-1 font-latin text-[13px]">@{user.username}{user.isPrivate && <span className="inline-flex items-center gap-0.5 t-tiny" title="非公開アカウント"><Icon name="lock" size={12} />非公開</span>}</p>
-        </div>
+      <div className="min-w-0 self-center">
+        <h1 id="profile-name" className="line-clamp-2 text-[22px] font-bold leading-[1.35] tracking-[-0.02em] desktop:text-[26px]">{user.name || user.username}</h1>
+        <p className="flex items-center gap-1.5 text-muted">
+          <span className="t-label truncate text-[17px] leading-[1.4]">@{user.username}</span>
+          {user.isPrivate && <span className="inline-flex shrink-0 items-center gap-0.5 text-[13px]"><Icon name="lock" size={14} />非公開</span>}
+        </p>
+        {user.counts && (
+          <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+            {([["投稿", user.counts.posts], ["フォロワー", user.counts.followers], ["フォロー", user.counts.following]] as const).map(([label, n]) => (
+              <div key={label} className="flex flex-row-reverse items-baseline justify-end gap-1">
+                <dt className="text-[13px] text-muted">{label}</dt>
+                <dd className="t-count">{formatCount(n)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
-      {user.bio && <p className="relative mt-[14px] whitespace-pre-wrap text-[12px] leading-[22px]">{user.bio}</p>}
-      {user.website && (
-        <a href={user.website} target="_blank" rel="noopener noreferrer nofollow ugc" className="relative mt-1 block truncate text-[12px] underline underline-offset-4">
-          {user.website.replace(/^https?:\/\//, "")}
-        </a>
-      )}
-      <dl className="relative mt-[15px] py-1">
-        <Fact shape="triangle" label="イキリポイント">{user.strength?.label ?? <Unset />}</Fact>
-        <Fact shape="circle" label="残念な弱点">{user.weakness?.label ?? <Unset />}</Fact>
-        <Fact shape="diamond" label="趣味3つ">
-          {user.hobbies.length ? (
-            <ul className="flex flex-wrap gap-1.5">{user.hobbies.map(h => <li key={h.id} className="rounded-[5px] bg-[#F6F3F8] px-2 py-[3px] text-[11px] leading-4">{h.label}</li>)}</ul>
-          ) : <Unset />}
-        </Fact>
-      </dl>
+      {actions && <div className="col-span-2 row-start-3 mt-4 desktop:col-span-1 desktop:col-start-2 desktop:row-start-2">{actions}</div>}
+      <div className="col-span-2 row-start-2 desktop:col-span-1 desktop:col-start-2 desktop:row-start-3"><About user={user} /></div>
     </section>
   )
 }
 
-function Unset() {
-  return <span className="font-normal text-[#574B64]">未設定</span>
+function About({ user }: { user: HeroUser }) {
+  return (
+    <>
+      {user.bio && <p className="mt-3 whitespace-pre-wrap t-small">{user.bio}</p>}
+      {user.website && (
+        <a href={user.website} target="_blank" rel="noopener noreferrer nofollow ugc" className="mt-1 inline-flex max-w-full items-center gap-1 t-small font-medium text-ink hover:underline">
+          <Icon name="globe" size={16} /><span className="truncate">{user.website.replace(/^https?:\/\//, "")}</span>
+        </a>
+      )}
+      <dl className="mt-3 divide-y divide-line border-y border-line">
+        <Fact shape="triangle" label="イキリポイント">{user.strength?.label ?? <Unset />}</Fact>
+        <Fact shape="circle" label="残念な弱点">{user.weakness?.label ?? <Unset />}</Fact>
+        <Fact shape="diamond" label="趣味3つ">
+          {user.hobbies.length ? (
+            <ul className="flex flex-wrap">{user.hobbies.map((h, i) => <li key={h.id}>{i > 0 && <span aria-hidden className="mx-1.5 text-muted">·</span>}<Link href={`/explore?q=${encodeURIComponent(h.label)}`} className="-my-3 inline-block py-3 hover:underline">{h.label}</Link></li>)}</ul>
+          ) : <Unset />}
+        </Fact>
+      </dl>
+    </>
+  )
 }
 
+function Unset() {
+  return <span className="font-normal text-muted">未設定</span>
+}
+
+// The three DayNet markers stay (triangle / circle / diamond) but small, as list bullets.
 function Fact({ shape, label, children }: { shape: "triangle" | "circle" | "diamond"; label: string; children: React.ReactNode }) {
   const mark =
-    shape === "triangle" ? <span className="mt-px block h-[18px] w-[18px] bg-accent" style={{ clipPath: "polygon(50% 0,100% 100%,0 100%)" }} />
-      : shape === "circle" ? <span className="mt-px block h-[18px] w-[18px] rounded-full border-2 border-ink" />
-        : <span className="ml-[3px] mr-[3px] mt-1 block h-3 w-3 rotate-45 bg-ink" />
+    shape === "triangle" ? <span className="block h-[10px] w-[11px] bg-accent" style={{ clipPath: "polygon(50% 0,100% 100%,0 100%)" }} />
+      : shape === "circle" ? <span className="block h-[10px] w-[10px] rounded-full border-[1.75px] border-ink" />
+        : <span className="block h-[8px] w-[8px] rotate-45 bg-ink" />
   return (
-    <div className="flex items-start gap-[11px] border-t border-profileline py-[11px] last:pb-0">
-      <span aria-hidden className="shrink-0">{mark}</span>
-      <div className="min-w-0">
-        <dt className="mb-[3px] text-[10px] leading-[15px] text-[#574B64]">{label}</dt>
-        <dd className="text-[13px] font-bold leading-5">{children}</dd>
-      </div>
+    <div className="flex items-baseline gap-3 py-2">
+      <span aria-hidden className="flex w-3 shrink-0 justify-center self-center">{mark}</span>
+      <dt className="w-[7.5em] shrink-0 text-[13px] text-muted">{label}</dt>
+      <dd className="min-w-0 flex-1 text-[15px] font-medium leading-[1.5]">{children}</dd>
     </div>
   )
 }

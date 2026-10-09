@@ -123,3 +123,18 @@ DayNet v4 — 引継ぎ（HANDOFF）
   3) npm audit の critical（next / @auth/core）を別PRで更新し、テスト一式を再実行。
   4) Vercel Preview（HTTPS）で iPhone 実機（Safari / ホーム画面追加）を確認: safe-area、キーボード、
      HEIC/縦写真/MOV、60秒/100MBの境界、回線切断、取消、ログイン、戻る、共有。
+
+────────────────────────────────────────
+7. UI 全面改修（2026-10-09, feature/ui-revamp）の引継ぎ
+────────────────────────────────────────
+・設計メモと改修前の問題分析: design/ui-refresh/NOTES.txt、比較画像: design/ui-refresh/compare-*.jpg
+・フォントを作り直すとき: scripts/fonts/subset_fonts.py（公式TTFのあるディレクトリを引数に指定）。
+  src/app/fonts.css と public/fonts/zkgn-*.woff2 / barlow-condensed-*.woff2 を再生成する。
+・要判断: favicon / PWAアイコン / apple-touch-icon / OG画像（public/brand/*）は旧配色（#302B38 / #EF7C68）の
+  ままで差し替えていない。アプリ内のマークは新トークン（#20211F / #B84432）で描画している。
+・要判断: v4 仕様では「ロゴの文字を再生成しない（SVGを使う）」としていたが、今回の指示（英字ブランド名は
+  Barlow Condensed）に従い、ヘッダーは「正本のマーク＋Barlow Condensed の DayNet」に変更した。正式ロゴ
+  SVGに戻す場合は src/components/brand/DayNetWordmark.tsx の1か所。
+・既知: Zen Kaku Gothic New には palt が無く、カナは全角送り。字間は0（広げていない）。
+・既知: 投稿者名リンクは高さ29px（隣のアバターが44pxの同じリンク）。趣味リンクは2文字の語で幅30px。
+・未確認: iPhone 実機・Safari、実スクリーンリーダー、OS の文字拡大。ダークモードは改修前から無いため未対応。

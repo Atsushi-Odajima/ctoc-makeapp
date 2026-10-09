@@ -58,16 +58,16 @@ export default function NewsArticlePage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  if (error) return <div className="mx-auto max-w-[640px] gutter pt-4"><ErrorState message={error} /></div>
-  if (!article) return <div className="mx-auto max-w-[640px] gutter pt-4"><Skeletons count={1} /></div>
+  if (error) return <div className="feed-column gutter desktop:px-0 desktop:pt-6 pt-4"><ErrorState message={error} /></div>
+  if (!article) return <div className="feed-column gutter desktop:px-0 desktop:pt-6 pt-4"><Skeletons count={1} /></div>
   return (
-    <article className="mx-auto max-w-[640px] gutter space-y-4 pt-4">
+    <article className="feed-column gutter desktop:px-0 desktop:pt-6 space-y-4 pt-4">
       <p className="text-muted t-small">{article.category} · {article.source} · {relativeTime(article.publishedAt)}</p>
       <h1 className="t-h2">{article.title}</h1>
       {article.summary && <p className="t-long">{article.summary}</p>}
       <a href={article.link} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">元の記事を読む（外部サイト）</a>
       {viewer ? (
-        <form onSubmit={submit} className="space-y-2 rounded-[12px] bg-surface p-4">
+        <form onSubmit={submit} className="space-y-2 rounded-[8px] bg-surface p-4">
           <div className="tabs">
             <button type="button" aria-pressed={mode === "comment"} onClick={() => setMode("comment")}>コメント</button>
             <button type="button" aria-pressed={mode === "quote"} onClick={() => setMode("quote")}>引用して投稿</button>

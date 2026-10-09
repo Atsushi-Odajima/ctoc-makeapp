@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ErrorState, Skeletons } from "@/components/ui/States"
+import { Icon } from "@/components/ui/Icon"
 import { api, ApiClientError } from "@/lib/client/api"
 import { relativeTime } from "@/lib/client/format"
 
@@ -17,11 +18,11 @@ export default function NewsPage() {
   const categories = ["すべて", ...new Set((data?.items ?? []).map(i => i.category))]
   const items = (data?.items ?? []).filter(i => category === "すべて" || i.category === category)
   return (
-    <div className="mx-auto max-w-[640px] gutter">
+    <div className="feed-column gutter desktop:px-0 desktop:pt-6">
       <h1 className="t-h1 mt-4">ニュース</h1>
       {data && <p className="text-muted t-small">提供: <a href={data.providerUrl} target="_blank" rel="noopener noreferrer" className="underline">{data.provider}</a></p>}
       <div className="mt-3 flex flex-wrap gap-2">
-        {categories.map(c => <button key={c} type="button" aria-pressed={category === c} className={`btn ${category === c ? "btn-primary" : "btn-secondary"}`} onClick={() => setCategory(c)}>{c}</button>)}
+        {categories.map(c => <button key={c} type="button" aria-pressed={category === c} className="chip" onClick={() => setCategory(c)}>{category === c && <Icon name="check" size={16} />}{c}</button>)}
       </div>
       {error ? <div className="mt-4"><ErrorState message={error} /></div> : !data ? <div className="mt-4"><Skeletons count={1} /></div> : (
         <ul className="mt-3">

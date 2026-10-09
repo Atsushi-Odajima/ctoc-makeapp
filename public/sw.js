@@ -3,8 +3,8 @@
  * Never caches: /api/* (including media tokens and DMs), HTML pages, post content,
  * cross-origin media. New versions wait until the user chooses to update.
  * Push notifications are not implemented; this worker never requests permission. */
-const STATIC_CACHE = "daynet-static-v4-2"
-const PRECACHE = ["/offline.html", "/brand/logo_mark.svg", "/fonts/BIZUDPGothic-Regular-base.woff2"]
+const STATIC_CACHE = "daynet-static-v5-1"
+const PRECACHE = ["/offline.html", "/fonts/zkgn-400-117.woff2"]
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(STATIC_CACHE).then(cache => cache.addAll(PRECACHE)))

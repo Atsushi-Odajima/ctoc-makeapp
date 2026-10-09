@@ -46,7 +46,7 @@ export function ReportDialog({ open, onClose, targetType, targetId }: { open: bo
           <legend className="field-label">理由</legend>
           <div className="space-y-1">
             {REASONS.map(([value, label]) => (
-              <label key={value} className="flex min-h-[44px] items-center gap-3 rounded-[11px] px-2 hover:bg-canvas">
+              <label key={value} className="flex min-h-[44px] items-center gap-3 rounded-[8px] px-2 hover:bg-subtle">
                 <input type="radio" name="reason" value={value} checked={reason === value} onChange={() => setReason(value)} className="h-5 w-5" />
                 <span>{label}</span>
               </label>

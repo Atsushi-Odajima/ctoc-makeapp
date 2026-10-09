@@ -36,7 +36,7 @@ export function VideoPlayer({ media }: { media: MediaDTO }) {
 
   const seconds = media.durationMs ? Math.round(media.durationMs / 1000) : null
   if (failed || !url) {
-    return <div className="grid aspect-video place-items-center bg-tabbg text-muted t-small photo-radius">動画を表示できません</div>
+    return <div className="grid aspect-video place-items-center bg-subtle text-muted t-small photo-radius">動画を表示できません</div>
   }
   return (
     <figure className="m-0">

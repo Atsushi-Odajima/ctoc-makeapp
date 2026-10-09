@@ -29,7 +29,7 @@ test("no horizontal scrolling at 390/320/768/1440 and 200% zoom, nav exposes the
 
 test("brand, manifest and metadata use DayNet only", async ({ page, request }) => {
   const manifest = await (await request.get("/manifest.webmanifest")).json()
-  expect(manifest).toMatchObject({ name: "DayNet", short_name: "DayNet", start_url: "/feed", display: "standalone", theme_color: "#F7F4F5", background_color: "#F7F4F5" })
+  expect(manifest).toMatchObject({ name: "DayNet", short_name: "DayNet", start_url: "/feed", display: "standalone", theme_color: "#F7F6F2", background_color: "#F7F6F2" })
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]))
   await page.goto("/")
   await expect(page).toHaveTitle("DayNet")

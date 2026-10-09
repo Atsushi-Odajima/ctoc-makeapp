@@ -7,7 +7,7 @@ import toast from "react-hot-toast"
 import { Avatar } from "@/components/ui/Avatar"
 import { Dialog } from "@/components/ui/Dialog"
 import { Icon } from "@/components/ui/Icon"
-import { Notice, Skeletons } from "@/components/ui/States"
+import { Notice } from "@/components/ui/States"
 import { api, ApiClientError } from "@/lib/client/api"
 import { signOutAndPurge } from "@/lib/client/sign-out"
 import { purgePersonalCache } from "@/lib/client/personal-cache"
@@ -68,10 +68,10 @@ export function SettingsView() {
     }
   }
 
-  if (!me) return <div className="mx-auto max-w-[640px] gutter"><Skeletons count={1} /></div>
+  if (!me) return <div className="feed-column gutter pt-4" aria-busy="true"><span className="sr-only">読み込み中</span><div className="skeleton h-8 w-1/3" /><div className="skeleton mt-6 h-24 w-full" /></div>
   return (
-    <div className="mx-auto max-w-[640px] gutter space-y-6">
-      <div className="flex items-center gap-2 py-2"><Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h2">設定</h1></div>
+    <div className="feed-column gutter space-y-8 desktop:px-0 desktop:pt-6">
+      <div className="-ml-3 flex items-center gap-1 pt-1"><Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h1">設定</h1></div>
 
       <Section title="公開範囲">
         <Toggle
@@ -103,9 +103,9 @@ export function SettingsView() {
             {blocks.map(({ user }) => <Row key={`b-${user.id}`} user={user} label="ブロック中" action="解除" onAction={async () => { await api(`/api/blocks/${user.id}`, { method: "DELETE" }); load() }} />)}
             {mutes.users.map(user => <Row key={`m-${user.id}`} user={user} label="ミュート中" action="解除" onAction={async () => { await api(`/api/mutes/${user.id}`, { method: "DELETE" }); load() }} />)}
             {mutes.communities.map(c => (
-              <li key={`c-${c.slug}`} className="flex min-h-[56px] items-center justify-between border-b border-line">
+              <li key={`c-${c.slug}`} className="flex min-h-[60px] items-center justify-between gap-3 border-b border-line">
                 <span>{c.name}<span className="ml-2 text-muted t-tiny">集まりをミュート中</span></span>
-                <button type="button" className="btn btn-secondary" onClick={async () => { await api(`/api/communities/${c.slug}/mute`, { method: "DELETE" }); load() }}>解除</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={async () => { await api(`/api/communities/${c.slug}/mute`, { method: "DELETE" }); load() }}>解除</button>
               </li>
             ))}
           </ul>
@@ -123,7 +123,7 @@ export function SettingsView() {
         </div>
         <p className="field-hint">プロフィール・自分の投稿・自分のコメント・参加情報が含まれます。他の人のDM本文は含まれません。写真・動画の原本は含まれません。</p>
         {(me.role === "MODERATOR" || me.role === "ADMIN") && <Link href="/admin/reports" className="btn btn-secondary">通報の確認（運営）</Link>}
-        <button type="button" className="btn btn-primary btn-block" onClick={() => void signOutAndPurge()}>ログアウト</button>
+        <button type="button" className="btn btn-secondary btn-block" onClick={() => void signOutAndPurge()}>ログアウト</button>
         <button type="button" className="btn btn-ghost btn-block text-error" onClick={() => setDeleteOpen(true)}>退会する</button>
       </Section>
 
@@ -133,7 +133,7 @@ export function SettingsView() {
           <Link href="/terms" className="link-btn">利用規約</Link>
           <Link href="/privacy" className="link-btn">プライバシーポリシー</Link>
         </div>
-        <p className="text-muted text-[10px]">{CINEMIX_NOTE}</p>
+        <p className="t-meta">{CINEMIX_NOTE}</p>
       </Section>
 
       <DeleteAccount open={deleteOpen} onClose={() => setDeleteOpen(false)} hasPassword={me.hasPassword} />
@@ -142,15 +142,15 @@ export function SettingsView() {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="space-y-3 rounded-[18px] bg-surface p-5" aria-label={title}><h2 className="t-section">{title}</h2>{children}</section>
+  return <section className="space-y-3 border-t border-line pt-4" aria-label={title}><h2 className="t-section">{title}</h2>{children}</section>
 }
 
 function Toggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div>
       <label className="flex min-h-[44px] items-center justify-between gap-3">
-        <span className="t-body font-bold">{label}</span>
-        <input type="checkbox" role="switch" aria-checked={checked} className="h-6 w-6" checked={checked} onChange={e => onChange(e.target.checked)} />
+        <span className="t-ui">{label}</span>
+        <input type="checkbox" role="switch" aria-checked={checked} className="switch" checked={checked} onChange={e => onChange(e.target.checked)} />
       </label>
       <p className="field-hint">{description}</p>
     </div>
@@ -159,10 +159,10 @@ function Toggle({ label, description, checked, onChange }: { label: string; desc
 
 function Row({ user, label, action, onAction }: { user: UserSummary; label: string; action: string; onAction: () => Promise<void> }) {
   return (
-    <li className="flex min-h-[56px] items-center gap-3 border-b border-line">
+    <li className="flex min-h-[60px] items-center gap-3 border-b border-line">
       <Avatar user={user} size={32} />
       <span className="min-w-0 flex-1 truncate">{user.name}<span className="ml-2 text-muted t-tiny">{label}</span></span>
-      <button type="button" className="btn btn-secondary" onClick={() => void onAction().catch(() => toast.error("操作できませんでした"))}>{action}</button>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => void onAction().catch(() => toast.error("操作できませんでした"))}>{action}</button>
     </li>
   )
 }

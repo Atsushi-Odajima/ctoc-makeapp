@@ -44,7 +44,7 @@ export function RegisterForm() {
       </label>
       <label className="block">
         <span className="field-label">ユーザー名（半角英小文字・数字・_ 3〜30文字・任意）</span>
-        <input className="input font-latin" autoComplete="username" autoCapitalize="none" spellCheck={false} {...field("username")} onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") }))} />
+        <input className="input" autoComplete="username" autoCapitalize="none" spellCheck={false} {...field("username")} onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") }))} />
         {errors.username && <span className="field-error block">{errors.username.join(" ")}</span>}
       </label>
       <label className="block">
@@ -59,7 +59,7 @@ export function RegisterForm() {
       </label>
       {error && <Notice tone="error">{error}</Notice>}
       <p className="text-muted t-small">登録すると<Link href="/terms" className="underline">利用規約</Link>と<Link href="/privacy" className="underline">プライバシーポリシー</Link>に同意したものとみなします。</p>
-      <button type="submit" className="btn btn-accent btn-block" disabled={loading}>{loading ? "作成中…" : "アカウントを作成"}</button>
+      <button type="submit" className="btn btn-primary btn-block" disabled={loading}>{loading ? "作成中…" : "アカウントを作成"}</button>
       <p className="text-center t-small">アカウントをお持ちの方は <Link href="/login" className="font-bold underline">ログイン</Link></p>
     </form>
   )

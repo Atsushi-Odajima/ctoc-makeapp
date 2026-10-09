@@ -14,18 +14,18 @@ export function relativeTime(iso: string, now = Date.now()): string {
   return formatDateTime(iso, { month: "short", day: "numeric" })
 }
 
-/** "TODAY / 10.07 WED" style date line (Outfit), in the viewer's time zone. */
+/** Japanese day heading for the feed — 「今日」「昨日」「10月7日（火）」 — in the viewer's time zone. */
 export function dateLine(iso: string, now = new Date()): { label: string; key: string } {
   const d = new Date(iso)
-  const key = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(d)
-  const todayKey = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(now)
+  const keyOf = (x: Date) => new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(x)
+  const key = keyOf(d)
   const y = new Date(now)
   y.setDate(y.getDate() - 1)
-  const yesterdayKey = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" }).format(y)
-  const md = new Intl.DateTimeFormat("en-US", { month: "2-digit", day: "2-digit" }).format(d).replace("/", ".")
-  const wd = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d).toUpperCase()
-  const prefix = key === todayKey ? "TODAY / " : key === yesterdayKey ? "YESTERDAY / " : ""
-  return { label: `${prefix}${md} ${wd}`, key }
+  if (key === keyOf(now)) return { label: "今日", key }
+  if (key === keyOf(y)) return { label: "昨日", key }
+  const sameYear = d.getFullYear() === now.getFullYear()
+  const label = new Intl.DateTimeFormat("ja-JP", { ...(sameYear ? {} : { year: "numeric" }), month: "long", day: "numeric", weekday: "short" }).format(d)
+  return { label: label.replace(/\((.)\)/, "（$1）"), key }
 }
 
 export function formatCount(n: number): string {

@@ -12,7 +12,7 @@ test("private account: request → approve → posts become visible", async ({ b
   await viewer.page.goto(`/post/${postId}`)
   await expect(viewer.page.getByText("この投稿は見つからないか、表示できません。")).toBeVisible()
   await viewer.page.goto(`/u/${owner.username}`)
-  await expect(viewer.page.getByText("非公開アカウントです。承認されたフォロワーだけが投稿を見られます。")).toBeVisible()
+  await expect(viewer.page.getByText("非公開アカウントです", { exact: true })).toBeVisible()
   await expect(viewer.page.getByText("喫茶店の引き出しが多い")).toBeVisible() // 3 items stay public
   await viewer.page.getByRole("button", { name: "フォローをリクエスト" }).click()
   await expect(viewer.page.getByRole("button", { name: "リクエスト済み" })).toBeVisible()

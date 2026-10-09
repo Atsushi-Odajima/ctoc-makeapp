@@ -44,7 +44,7 @@ test("authorization failures are refused in the browser and at the API", async (
   })
   await db().post.create({ data: { userId: a.id, caption: "メンバー限定の話", communityId: community.id, visibility: "COMMUNITY", status: "PUBLISHED", publishedAt: new Date() } })
   await c.page.goto(`/communities/${community.slug}`)
-  await expect(c.page.getByText("非公開の集まりです。")).toBeVisible()
+  await expect(c.page.getByText("非公開の集まりです", { exact: true })).toBeVisible()
   await expect(c.page.getByText("メンバー限定の話")).toHaveCount(0)
   expect((await c.page.request.get(`/api/communities/${community.slug}/posts`)).status()).toBe(404)
   expect((await anon.request.get(`/api/communities/${community.slug}/members`)).status()).toBe(404)

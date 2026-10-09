@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "利用規約" }
 // operator (and counsel) before public launch.
 export default function TermsPage() {
   return (
-    <article className="mx-auto max-w-[640px] gutter space-y-4 pt-4 t-long">
+    <article className="feed-column gutter desktop:px-0 desktop:pt-6 space-y-4 pt-4 t-long">
       <h1 className="t-h1">利用規約（草案）</h1>
       <p className="text-muted t-small">この文書は公開前の草案です。運営者による確認を経て確定します。</p>
       <h2 className="t-h2">投稿について</h2>

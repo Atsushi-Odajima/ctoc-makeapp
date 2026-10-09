@@ -7,13 +7,24 @@ import { DayNetWordmark } from "@/components/brand/DayNetWordmark"
 import { Icon, type IconName } from "@/components/ui/Icon"
 import { useViewer } from "./ViewerContext"
 
-const NAV: Array<{ href: string; label: string; icon: IconName; match: (p: string) => boolean; create?: boolean }> = [
+interface NavItem { href: string; label: string; icon: IconName; match: (p: string) => boolean; create?: boolean }
+
+// Phones/tablets: five destinations at the bottom (thumb reach). DM and お知らせ live in the
+// header, where people expect them. Desktop: everything in one top bar, labels always visible.
+const PRIMARY: NavItem[] = [
   { href: "/feed", label: "ホーム", icon: "home", match: p => p === "/feed" },
+  { href: "/explore", label: "さがす", icon: "search", match: p => p.startsWith("/explore") },
+  { href: "/create", label: "投稿", icon: "create", match: p => p.startsWith("/create"), create: true },
   { href: "/communities", label: "集まり", icon: "community", match: p => p.startsWith("/communities") },
-  { href: "/create", label: "投稿", icon: "plus", match: p => p.startsWith("/create"), create: true },
-  { href: "/messages", label: "DM", icon: "message", match: p => p.startsWith("/messages") },
   { href: "/profile", label: "自分", icon: "user", match: p => p.startsWith("/profile") || p.startsWith("/settings") || p.startsWith("/bookmarks") || p.startsWith("/footprints") },
 ]
+const FILLABLE: IconName[] = ["home", "user"]
+const DM_ITEM: NavItem = { href: "/messages", label: "DM", icon: "message", match: p => p.startsWith("/messages") }
+// Desktop order: ホーム・さがす・集まり・DM・自分 (投稿 is the accent button on the right).
+const desktopNav = (signedIn: boolean) => {
+  const [home, search, , communities, me] = PRIMARY as [NavItem, NavItem, NavItem, NavItem, NavItem]
+  return signedIn ? [home, search, communities, DM_ITEM, me] : [home, search, communities]
+}
 
 function useUnreadCount(enabled: boolean) {
   const [count, setCount] = useState(0)
@@ -44,7 +55,7 @@ function useUnreadCount(enabled: boolean) {
   return count
 }
 
-/** Hide the floating nav while the on-screen keyboard is likely open, so it never covers input. */
+/** Hide the bottom nav while the on-screen keyboard is likely open, so it never covers input. */
 function useKeyboardOpen() {
   const [open, setOpen] = useState(false)
   useEffect(() => {
@@ -62,91 +73,106 @@ function useKeyboardOpen() {
   return open
 }
 
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return <span aria-hidden className="absolute right-[5px] top-[5px] min-w-[18px] rounded-full border-2 border-canvas bg-accent px-1 text-center font-[family-name:var(--font-label)] text-[13px] font-semibold leading-[14px] text-white">{count > 99 ? "99+" : count}</span>
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/"
   const viewer = useViewer()
   const unread = useUnreadCount(!!viewer)
   const keyboardOpen = useKeyboardOpen()
+  const notificationsLabel = unread > 0 ? `お知らせ（未読${unread}件）` : "お知らせ"
+  const onNotifications = pathname.startsWith("/notifications")
+  const onMessages = pathname.startsWith("/messages")
+  // Inside a conversation the composer owns the bottom edge, so the tab bar steps aside.
+  const inThread = /^\/messages\/[^/]+/.test(pathname)
 
   return (
     <div className="min-h-dvh">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2">本文へ移動</a>
-      <header className="mx-auto flex h-[72px] max-w-[1120px] items-center justify-between gap-3 px-[15px] min-[360px]:px-5 desktop:px-8" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-        <Link href={viewer ? "/feed" : "/"} aria-label="DayNetのホーム" className="shrink-0 rounded-md">
-          <DayNetWordmark width={165} decorative className="h-auto w-[150px] min-[360px]:w-[165px]" />
-        </Link>
-        <nav aria-label="メインナビゲーション" className="hidden desktop:block">
-          <ul className="flex items-center gap-1">
-            {NAV.map(item => {
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-[8px] focus:bg-surface focus:px-4 focus:py-2">本文へ移動</a>
+
+      <header className="desktop:sticky desktop:top-0 desktop:z-40 desktop:border-b desktop:border-line desktop:bg-canvas" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+        <div className="wide-column flex h-[var(--header-height)] items-center justify-between gap-2 pl-4 pr-1 desktop:h-16 desktop:px-6">
+          <Link href={viewer ? "/feed" : "/"} aria-label="DayNetのホーム" className="flex min-h-[44px] shrink-0 items-center rounded-[4px]">
+            <DayNetWordmark size={20} decorative />
+          </Link>
+
+          <nav aria-label="メインナビゲーション" className="hidden desktop:block">
+            <ul className="flex items-center gap-1">
+              {desktopNav(!!viewer).map(item => {
+                const active = item.match(pathname)
+                return (
+                  <li key={item.href}>
+                    <Link href={item.href} aria-current={active ? "page" : undefined} className={`flex min-h-[44px] items-center gap-2 rounded-[8px] px-3 text-[15px] transition-colors duration-150 hover:bg-subtle ${active ? "font-bold text-ink" : "font-medium text-muted"}`}>
+                      <Icon name={item.icon} size={22} filled={active && FILLABLE.includes(item.icon)} />
+                      <span>{item.label}</span>
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+
+          <div className="flex items-center">
+            {viewer ? (
+              <>
+                <Link href="/create" className="btn btn-primary btn-sm mr-2 hidden desktop:inline-flex"><Icon name="plus" size={18} />投稿</Link>
+                <Link href="/notifications" className={`icon-btn relative ${onNotifications ? "text-accent" : ""}`} aria-label={notificationsLabel} title="お知らせ" aria-current={onNotifications ? "page" : undefined}>
+                  <Icon name="bell" filled={onNotifications} />
+                  <Badge count={unread} />
+                </Link>
+                <Link href="/messages" className={`icon-btn desktop:hidden ${onMessages ? "text-accent" : ""}`} aria-label="DM" title="DM" aria-current={onMessages ? "page" : undefined}>
+                  <Icon name="message" filled={onMessages} />
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/explore" className="icon-btn" aria-label="さがす" title="さがす"><Icon name="search" /></Link>
+                <Link href="/login" className="btn btn-ink btn-sm ml-1 mr-3">ログイン</Link>
+              </>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {viewer && !viewer.profileComplete && !pathname.startsWith("/onboarding") && (
+        <div className="feed-column gutter desktop:mt-4">
+          <div role="note" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-y border-line py-3 t-small">
+            <span className="min-w-0 flex-1">イキリポイント・残念な弱点・趣味3つを設定すると、投稿・コメント・DMができます。</span>
+            <Link href="/onboarding" className="btn btn-ink btn-sm">設定する</Link>
+          </div>
+        </div>
+      )}
+
+      <main id="main" className={inThread ? "" : "page-bottom-space"}>{children}</main>
+
+      {viewer && !inThread && (
+        <nav
+          aria-label="メインナビゲーション"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-canvas transition-transform duration-150 desktop:hidden"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)", transform: keyboardOpen ? "translateY(110%)" : undefined, visibility: keyboardOpen ? "hidden" : undefined }}
+        >
+          <ul className="mx-auto flex h-[var(--nav-height)] max-w-[560px] items-stretch">
+            {PRIMARY.map(item => {
               const active = item.match(pathname)
               return (
-                <li key={item.href}>
+                <li key={item.href} className="flex flex-1">
                   <Link
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={item.create
-                      ? "btn btn-accent ml-2"
-                      : `interactive flex min-h-[44px] items-center gap-2 rounded-[11px] px-3 text-[13px] ${active ? "font-bold text-accent" : "text-ink"}`}
+                    className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 text-[13px] leading-[1.2] transition-colors duration-150 ${active ? "font-bold text-ink" : "font-medium text-muted"}`}
                   >
-                    <Icon name={item.icon} size={item.create ? 20 : 22} />
+                    <span className={item.create ? "text-accent" : active ? "text-ink" : "text-ink/80"}>
+                      <Icon name={item.icon} size={26} filled={active && FILLABLE.includes(item.icon)} strokeWidth={active && !item.create ? 2 : 1.75} />
+                    </span>
                     <span>{item.label}</span>
                   </Link>
                 </li>
               )
             })}
           </ul>
-        </nav>
-        <div className="flex items-center">
-          <Link href="/explore" className="icon-btn" aria-label="検索"><Icon name="search" /></Link>
-          {viewer ? (
-            <Link href="/notifications" className="icon-btn relative" aria-label={unread > 0 ? `お知らせ（未読${unread}件）` : "お知らせ"}>
-              <Icon name="bell" />
-              {unread > 0 && <span aria-hidden className="absolute right-2 top-2 min-w-[16px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4 text-ink">{unread > 99 ? "99+" : unread}</span>}
-            </Link>
-          ) : (
-            <Link href="/login" className="btn btn-primary ml-1">ログイン</Link>
-          )}
-        </div>
-      </header>
-
-      {viewer && !viewer.profileComplete && !pathname.startsWith("/onboarding") && (
-        <div className="mx-auto max-w-[640px] gutter">
-          <div role="note" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[13px] border border-warning bg-surface px-4 py-3 t-small">
-            <span>イキリポイント・残念な弱点・趣味3つを設定すると、投稿・コメント・DMができます。</span>
-            <Link href="/onboarding" className="btn btn-primary">設定する</Link>
-          </div>
-        </div>
-      )}
-
-      <main id="main" className="page-bottom-space">{children}</main>
-
-      {viewer && (
-        <nav
-          aria-label="メインナビゲーション"
-          className="fixed left-1/2 z-40 flex h-[72px] w-[min(calc(100%-24px),610px)] -translate-x-1/2 items-center rounded-[22px] bg-ink px-1.5 text-white shadow-[0_6px_22px_#302B381A] transition-transform desktop:hidden"
-          style={{ bottom: "max(12px, env(safe-area-inset-bottom))", transform: keyboardOpen ? "translate(-50%, 140%)" : undefined, visibility: keyboardOpen ? "hidden" : undefined }}
-        >
-          {NAV.map(item => {
-            const active = item.match(pathname)
-            if (item.create) {
-              return (
-                <Link key={item.href} href={item.href} aria-label="投稿" aria-current={active ? "page" : undefined} className="flex min-h-[56px] flex-[0.92] items-center justify-center rounded-[13px]">
-                  <span className="grid h-[44px] w-[44px] place-items-center rounded-[13px] bg-accent text-ink"><Icon name="plus" /></span>
-                </Link>
-              )
-            }
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center gap-[3px] rounded-[13px] text-[10px] leading-[15px] ${active ? "font-bold text-accent" : "text-white"}`}
-              >
-                <Icon name={item.icon} size={22} />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
         </nav>
       )}
     </div>

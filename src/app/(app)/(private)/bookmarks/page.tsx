@@ -2,21 +2,21 @@
 
 import Link from "next/link"
 import { Icon } from "@/components/ui/Icon"
-import { EmptyState, ErrorState, Skeletons } from "@/components/ui/States"
+import { EmptyState, ErrorState, GridSkeleton } from "@/components/ui/States"
 import { useInfinite } from "@/components/ui/useInfinite"
-import { PostCard } from "@/components/post/PostCard"
+import { PostGrid } from "@/components/profile/PostGrid"
 import type { PostDTO } from "@/lib/dto/post"
 
 export default function BookmarksPage() {
   const { items, loading, error, done, loadMore, reload } = useInfinite<PostDTO>("/api/bookmarks")
   return (
-    <div className="mx-auto max-w-[640px] gutter">
-      <div className="flex items-center gap-2 py-2"><Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h2">保存した投稿</h1></div>
-      <p className="mb-3 text-muted t-small">保存した投稿はあなたにだけ表示されます。見られなくなった投稿は表示されません。</p>
-      {error && !items.length ? <ErrorState message={error.message} onRetry={() => void reload()} /> : loading && !items.length ? <Skeletons /> : !items.length ? <EmptyState title="まだ保存した投稿はありません。" /> : (
+    <div className="wide-column desktop:px-6 desktop:pt-6">
+      <div className="flex items-center gap-1 pl-1 pt-1 desktop:pl-0"><Link href="/profile" className="icon-btn desktop:-ml-3" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h1">保存した投稿</h1></div>
+      <p className="px-[var(--gutter)] pb-3 t-meta desktop:px-0">保存した投稿はあなたにだけ表示されます。見られなくなった投稿は表示されません。</p>
+      {error && !items.length ? <ErrorState message={error.message} onRetry={() => void reload()} /> : loading && !items.length ? <GridSkeleton /> : !items.length ? <EmptyState icon="bookmark" title="まだ保存した投稿はありません" body="投稿の右下の保存ボタンで、あとで見返したい投稿を残せます。" /> : (
         <>
-          {items.map(p => <div key={p.id} className="mb-[26px]"><PostCard post={p} /></div>)}
-          {!done && <div className="text-center"><button type="button" className="btn btn-secondary" disabled={loading} onClick={() => void loadMore()}>もっと見る</button></div>}
+          <PostGrid posts={items} />
+          {!done && <div className="py-6 text-center"><button type="button" className="btn btn-secondary" disabled={loading} aria-busy={loading} onClick={() => void loadMore()}>{loading ? "読み込み中…" : "もっと見る"}</button></div>}
         </>
       )}
     </div>

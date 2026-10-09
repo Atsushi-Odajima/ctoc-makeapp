@@ -73,18 +73,18 @@ export function ProfileEditor() {
     }
   }
 
-  if (!me) return <div className="mx-auto max-w-[640px] gutter">{error ? <Notice tone="error">{error}</Notice> : <Skeletons count={1} />}</div>
+  if (!me) return <div className="feed-column gutter pt-4 desktop:px-0">{error ? <Notice tone="error">{error}</Notice> : <Skeletons count={1} />}</div>
   return (
-    <form onSubmit={save} className="mx-auto max-w-[640px] gutter space-y-5" noValidate>
-      <div className="flex items-center gap-2 py-2">
+    <form onSubmit={save} className="feed-column gutter space-y-5 desktop:px-0 desktop:pt-6" noValidate>
+      <div className="-ml-3 flex items-center gap-1 pt-1">
         <Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link>
-        <h1 className="t-h2 flex-1">プロフィールを編集</h1>
+        <h1 className="t-h1 flex-1">プロフィールを編集</h1>
       </div>
       <div className="flex items-center gap-4">
         {avatarPreview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarPreview} alt="新しいアイコンのプレビュー" className="h-[64px] w-[64px] rounded-[19px] object-cover" />
-        ) : <Avatar user={me} size={64} decorative={false} />}
+          <img src={avatarPreview} alt="新しいアイコンのプレビュー" className="h-[72px] w-[72px] rounded-full object-cover" />
+        ) : <Avatar user={me} size={72} decorative={false} />}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-secondary" onClick={() => fileRef.current?.click()} disabled={uploading > 0}>{uploading > 0 ? `アップロード中 ${Math.round(uploading * 100)}%` : "アイコンを変更"}</button>
           {(me.avatar || avatarPreview) && <button type="button" className="btn btn-ghost" onClick={() => { setAvatarMediaId(null); setAvatarPreview(null) }}>アイコンを外す</button>}
@@ -109,14 +109,14 @@ export function ProfileEditor() {
         <span className="field-hint block">ユーザー名は変更できません（URLとして使われています）。</span>
       </Field>
 
-      <div className="rounded-[18px] bg-lilac p-5">
-        <p className="t-section">イキリポイント・残念な弱点・趣味3つ</p>
+      <div className="border-y border-line py-4">
+        <p className="t-ui font-bold">イキリポイント・残念な弱点・趣味3つ</p>
         <p className="mt-1 t-small">{me.strength?.label ?? "未設定"} / {me.weakness?.label ?? "未設定"} / {me.hobbies.map(h => h.label).join("・") || "未設定"}</p>
         <Link href="/onboarding?next=/profile" className="btn btn-secondary mt-3">3つの項目を変更</Link>
       </div>
 
       {error && <Notice tone="error">{error}</Notice>}
-      <button type="submit" className="btn btn-primary btn-block" disabled={saving || uploading > 0}>{saving ? "保存中…" : "保存"}</button>
+      <button type="submit" className="btn btn-primary btn-block" disabled={saving || uploading > 0} aria-busy={saving}>{saving ? "保存中…" : "保存"}</button>
     </form>
   )
 }

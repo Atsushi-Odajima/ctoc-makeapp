@@ -13,8 +13,8 @@ export default function FootprintsPage() {
   const [data, setData] = useState<{ optedIn: boolean; items: Array<{ id: string; visitedAt: string; visitor: UserSummary }> } | null>(null)
   useEffect(() => { api<typeof data>("/api/footprints").then(r => setData(r.data)).catch(() => setData({ optedIn: false, items: [] })) }, [])
   return (
-    <div className="mx-auto max-w-[640px] gutter">
-      <div className="flex items-center gap-2 py-2"><Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h2">足あと</h1></div>
+    <div className="feed-column gutter desktop:px-0 desktop:pt-6">
+      <div className="flex items-center gap-2 py-2"><Link href="/profile" className="icon-btn" aria-label="戻る"><Icon name="back" /></Link><h1 className="t-h1">足あと</h1></div>
       <p className="mb-3 text-muted t-small">お互いに「足あと」を有効にしている人どうしだけ、プロフィールを訪れた記録が残ります（1日1回・30日で消去）。投稿の閲覧数ではありません。</p>
       {!data ? <Skeletons count={1} /> : !data.optedIn ? (
         <Notice tone="info">足あとはオフです。<Link href="/settings" className="underline">設定</Link>でオンにすると、同じくオンにしている人の訪問が記録されます。</Notice>

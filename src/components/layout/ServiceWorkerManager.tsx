@@ -39,7 +39,7 @@ export function ServiceWorkerManager() {
   return (
     <div role="status" className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-ink px-4 py-2 text-white t-small" style={{ paddingTop: "max(8px, env(safe-area-inset-top))" }}>
       <span>新しいバージョンがあります。</span>
-      <button type="button" className="btn btn-accent" style={{ minHeight: 36 }} onClick={update}>更新する</button>
+      <button type="button" className="btn btn-primary" style={{ minHeight: 36 }} onClick={update}>更新する</button>
       <button type="button" className="btn btn-ghost text-white" style={{ minHeight: 36 }} onClick={() => setWaiting(null)}>あとで</button>
     </div>
   )

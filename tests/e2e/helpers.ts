@@ -29,7 +29,7 @@ export async function register(page: Page, name: string, username = uniq("u")) {
 }
 
 export async function onboarding(page: Page) {
-  await expect(page.getByText("STEP 1 / 3")).toBeVisible()
+  await expect(page.getByText("1 / 3", { exact: true })).toBeVisible()
   // Next is disabled until a choice is made (required items cannot be skipped).
   await expect(page.getByRole("button", { name: "次へ" })).toBeDisabled()
   await page.getByText("喫茶店の引き出しが多い").click()

@@ -32,6 +32,8 @@ interface Attachment {
   error: string | null
   altText: string
   abort?: () => void
+  /** the original File is still in memory (this session), so a failed upload can be retried */
+  hasFile?: boolean
 }
 
 export function Composer({ userId, isPrivate, initialCommunity }: { userId: string; isPrivate: boolean; initialCommunity: string | null }) {
@@ -52,6 +54,8 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
   const fileInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
   const dragIndex = useRef<number | null>(null)
+  const fileStore = useRef(new Map<string, File>())
+  const [selected, setSelected] = useState(0)
 
   const community = communities.find(c => c.slug === destination) ?? null
   const uploading = items.some(i => i.status === "uploading")
@@ -174,8 +178,10 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
       progress: 0,
       error: null,
       altText: "",
+      hasFile: true,
     }))
-    setItems(prev => [...prev, ...created])
+    created.forEach((item, index) => fileStore.current.set(item.localId, list[index]!))
+    setItems(prev => { setSelected(prev.length); return [...prev, ...created] })
     created.forEach((item, index) => void startUpload(item, list[index]!))
   }
 
@@ -183,7 +189,16 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
     const item = items.find(i => i.localId === localId)
     item?.abort?.()
     if (item?.previewUrl?.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl)
+    fileStore.current.delete(localId)
     setItems(prev => prev.filter(i => i.localId !== localId))
+    setSelected(i => Math.max(0, Math.min(i, items.length - 2)))
+  }
+
+  function retry(item: Attachment) {
+    const file = fileStore.current.get(item.localId)
+    if (!file) return
+    patch(item.localId, { status: "uploading", progress: 0, error: null, mediaId: null })
+    void startUpload(item, file)
   }
 
   function move(index: number, delta: number) {
@@ -194,6 +209,7 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
       ;[next[index], next[target]] = [next[target]!, next[index]!]
       return next
     })
+    setSelected(s => (s === index ? index + delta : s))
   }
 
   async function submit(publish: boolean) {
@@ -252,134 +268,176 @@ export function Composer({ userId, isPrivate, initialCommunity }: { userId: stri
 
   const count = graphemeCount(caption)
   const expanding = !destination && visibility === "PUBLIC"
+  const current = items[Math.min(selected, items.length - 1)]
+  const canAdd = items.length === 0 || (items[0]!.kind === "IMAGE" && items.length < 5)
+  const statusText = (item: Attachment) =>
+    item.status === "uploading" ? `アップロード中 ${Math.round(item.progress * 100)}%`
+      : item.status === "processing" ? "処理中（投稿すると、処理が終わりしだい公開されます）"
+        : item.status === "ready" ? "準備できました"
+          : item.error ?? "もう一度選んでください"
+
   return (
-    <div className="mx-auto max-w-[640px] gutter">
-      <div className="my-[15px] flex items-center justify-between gap-3">
+    <div className="mx-auto w-full max-w-[960px] desktop:px-6">
+      <div className="flex items-center gap-1 px-1 py-1 desktop:px-0 desktop:py-4">
         <button type="button" className="icon-btn" onClick={back} aria-label="戻る"><Icon name="back" /></button>
-        <h1 className="flex-1 text-[23px] font-bold leading-[34px]">今日のひとコマ</h1>
-        <button type="button" className="btn btn-accent" onClick={() => void submit(true)} disabled={submitting || uploading} aria-busy={submitting}>
+        <h1 className="flex-1 t-ui font-bold desktop:t-h2">新しい投稿</h1>
+        <button type="button" className="btn btn-primary btn-sm mr-3 desktop:hidden" onClick={() => void submit(true)} disabled={submitting || uploading} aria-busy={submitting}>
           {submitting ? "送信中…" : "投稿する"}
         </button>
       </div>
 
-      {!online && <Notice tone="warning">接続が切れています。下書きはこの端末に保存しました。接続が戻ったら再試行してください。</Notice>}
+      <input ref={fileInput} type="file" className="sr-only" tabIndex={-1} aria-hidden multiple accept={[...IMAGE_TYPES, ...VIDEO_TYPES, ".heic", ".heif", ".mov"].join(",")} onChange={e => { void onFiles(e.target.files); e.target.value = "" }} />
+      <input ref={cameraInput} type="file" className="sr-only" tabIndex={-1} aria-hidden accept="image/*,video/*" capture="environment" onChange={e => { void onFiles(e.target.files); e.target.value = "" }} />
 
-      <label htmlFor="caption" className="sr-only">投稿本文</label>
-      <textarea
-        id="caption"
-        className="w-full resize-y border-0 border-b border-line bg-transparent py-3 text-[16px] leading-[30px] focus-visible:outline-offset-0"
-        style={{ minHeight: 110 }}
-        placeholder="見つけたもの、思ったこと。"
-        value={caption}
-        onChange={e => setCaption(e.target.value)}
-        aria-invalid={count > CAPTION_MAX || !!fieldErrors.caption}
-        aria-describedby="caption-count"
-      />
-      <p id="caption-count" className={`text-right t-tiny ${count > CAPTION_MAX ? "text-error" : "text-muted"}`}>{count} / {CAPTION_MAX}</p>
-      {fieldErrors.caption && <p className="field-error">{fieldErrors.caption.join(" ")}</p>}
+      {!online && <div className="mb-3 px-[var(--gutter)] desktop:px-0"><Notice tone="warning">接続が切れています。下書きはこの端末に保存しました。接続が戻ったら再試行してください。</Notice></div>}
 
-      <div className="my-[15px] flex gap-2">
-        <button type="button" className="btn btn-secondary flex-1 px-2 text-[12px]" onClick={() => fileInput.current?.click()} disabled={submitting}>
-          <Icon name="camera" size={20} />写真・動画を選ぶ
-        </button>
-        <button type="button" className="btn btn-secondary flex-1 px-2 text-[12px]" onClick={() => cameraInput.current?.click()} disabled={submitting}>
-          <Icon name="plus" size={20} />撮影する
-        </button>
-        <input ref={fileInput} type="file" className="sr-only" tabIndex={-1} aria-hidden multiple accept={[...IMAGE_TYPES, ...VIDEO_TYPES, ".heic", ".heif", ".mov"].join(",")} onChange={e => { void onFiles(e.target.files); e.target.value = "" }} />
-        <input ref={cameraInput} type="file" className="sr-only" tabIndex={-1} aria-hidden accept="image/*,video/*" capture="environment" onChange={e => { void onFiles(e.target.files); e.target.value = "" }} />
-      </div>
+      <div className="desktop:grid desktop:grid-cols-[minmax(0,1fr)_360px] desktop:items-start desktop:gap-8">
+        {/* Preview: what people will see, in order. */}
+        <section aria-label="写真・動画" className="desktop:sticky desktop:top-24">
+          {items.length === 0 || !current ? (
+            <div className="mx-[var(--gutter)] flex flex-col items-center gap-3 rounded-[4px] border border-line bg-surface px-6 py-8 text-center desktop:mx-0 desktop:aspect-[4/5] desktop:justify-center">
+              <span className="text-muted"><Icon name="image" size={40} strokeWidth={1.5} /></span>
+              <p className="t-ui">写真・動画を選ぶか、文章だけの日記を書けます</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button type="button" className="btn btn-ink" onClick={() => fileInput.current?.click()} disabled={submitting}><Icon name="image" size={20} />写真・動画を選ぶ</button>
+                <button type="button" className="btn btn-secondary" onClick={() => cameraInput.current?.click()} disabled={submitting}><Icon name="camera" size={20} />撮影する</button>
+              </div>
+              <p className="t-meta">写真は5枚まで（1枚20MB）。動画は1本・60秒・100MBまで。</p>
+            </div>
+          ) : (
+            <>
+              <div className="relative grid aspect-[4/5] place-items-center overflow-hidden bg-subtle photo-radius">
+                {current.previewUrl && current.kind === "IMAGE"
+                  ? <img src={current.previewUrl} alt={current.altText || `${selected + 1}枚目のプレビュー`} className="h-full w-full object-contain" />
+                  : <span className="flex flex-col items-center gap-2 text-muted t-small"><Icon name={current.kind === "VIDEO" ? "video" : "image"} size={40} />{current.kind === "VIDEO" ? "動画（投稿後に再生できます）" : "プレビューできない形式です（HEIC など）"}</span>}
+                {current.status === "uploading" && (
+                  <div className="absolute inset-x-0 bottom-0 bg-[#20211F]/70 px-3 py-2 text-white">
+                    <div className="h-1 overflow-hidden rounded-full bg-white/30"><div className="h-full bg-white transition-[width] duration-200" style={{ width: `${Math.round(current.progress * 100)}%` }} /></div>
+                  </div>
+                )}
+                {items.length > 1 && <span className="absolute right-2 top-2 rounded-full bg-[#20211F]/65 px-2 py-0.5 t-label text-[13px] text-white">{selected + 1}/{items.length}</span>}
+              </div>
 
-      {uploading && <p className="mb-2 text-muted t-small" role="status">アップロード中にタブを閉じると、その写真・動画はもう一度選ぶ必要があります。</p>}
+              {/* Thumbnails: choose which one to edit; order = display order. */}
+              <ol className="flex gap-2 overflow-x-auto px-[var(--gutter)] pb-1 pt-3 desktop:px-0" aria-label="添付（この順番で表示されます）">
+                {items.map((item, index) => (
+                  <li
+                    key={item.localId}
+                    draggable
+                    onDragStart={() => { dragIndex.current = index }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => { if (dragIndex.current !== null && dragIndex.current !== index) move(dragIndex.current, index - dragIndex.current); dragIndex.current = null }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelected(index)}
+                      aria-pressed={index === selected}
+                      aria-label={`${index + 1}枚目を選ぶ（${statusText(item)}）`}
+                      className={`relative grid h-16 w-16 place-items-center overflow-hidden rounded-[4px] bg-subtle outline-offset-2 ${index === selected ? "outline outline-2 outline-ink" : ""}`}
+                    >
+                      {item.previewUrl && item.kind === "IMAGE" ? <img src={item.previewUrl} alt="" className="h-full w-full object-cover" /> : <Icon name={item.kind === "VIDEO" ? "video" : "image"} size={24} />}
+                      {item.status === "uploading" && <span className="absolute inset-x-1 bottom-1 h-1 overflow-hidden rounded-full bg-white/60"><span className="block h-full bg-ink" style={{ width: `${Math.round(item.progress * 100)}%` }} /></span>}
+                      {(item.status === "failed" || item.status === "missing") && <span className="absolute inset-0 grid place-items-center bg-[#20211F]/55 text-white"><Icon name="alert" size={22} /></span>}
+                    </button>
+                  </li>
+                ))}
+                {canAdd && (
+                  <li>
+                    <button type="button" className="grid h-16 w-16 place-items-center rounded-[4px] border border-control bg-surface text-ink" onClick={() => fileInput.current?.click()} disabled={submitting} aria-label="写真を追加">
+                      <Icon name="plus" />
+                    </button>
+                  </li>
+                )}
+              </ol>
 
-      {items.length > 0 && (
-        <ol className="space-y-3" aria-label="添付（この順番で表示されます）">
-          {items.map((item, index) => (
-            <li
-              key={item.localId}
-              className="rounded-[12px] bg-surface p-3"
-              draggable
-              onDragStart={() => { dragIndex.current = index }}
-              onDragOver={e => e.preventDefault()}
-              onDrop={() => { if (dragIndex.current !== null && dragIndex.current !== index) move(dragIndex.current, index - dragIndex.current); dragIndex.current = null }}
-            >
-              <div className="flex gap-3">
-                <div className="grid h-[84px] w-[84px] shrink-0 place-items-center overflow-hidden rounded-[9px] bg-tabbg">
-                  {item.previewUrl && item.kind === "IMAGE" ? <img src={item.previewUrl} alt="" className="h-full w-full object-cover" /> : <Icon name={item.kind === "VIDEO" ? "video" : "image"} size={28} />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate t-small">{index + 1}. {item.kind === "VIDEO" ? "動画" : "写真"}{item.name ? `・${item.name}` : ""}</p>
-                  {item.status === "uploading" && (
-                    <div className="mt-1">
-                      <progress className="h-2 w-full" max={1} value={item.progress} aria-label={`アップロード ${Math.round(item.progress * 100)}%`} />
-                      <span className="text-muted t-tiny">{Math.round(item.progress * 100)}%</span>
-                    </div>
-                  )}
-                  {item.status === "processing" && <p className="text-muted t-tiny" role="status">処理中（投稿すると、処理が終わりしだい公開されます）</p>}
-                  {item.status === "ready" && <p className="text-success t-tiny">準備できました</p>}
-                  {(item.status === "failed" || item.status === "missing") && <p className="field-error mt-0" role="alert">{item.error ?? "もう一度選んでください"}</p>}
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    <button type="button" className="icon-btn" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`${index + 1}番目を前へ`}><Icon name="chevronLeft" size={20} /></button>
-                    <button type="button" className="icon-btn" onClick={() => move(index, 1)} disabled={index === items.length - 1} aria-label={`${index + 1}番目を後ろへ`}><Icon name="chevronRight" size={20} /></button>
-                    <button type="button" className="icon-btn" onClick={() => removeItem(item.localId)} aria-label={item.status === "uploading" ? `${index + 1}番目のアップロードを取り消す` : `${index + 1}番目を削除`}><Icon name="close" size={20} /></button>
+              <div className="px-[var(--gutter)] desktop:px-0">
+                <div className="flex flex-wrap items-center gap-x-2">
+                  <p className={`min-w-0 flex-1 t-small ${current.status === "ready" ? "text-success" : current.status === "failed" || current.status === "missing" ? "text-error" : "text-muted"}`} role={current.status === "failed" || current.status === "missing" ? "alert" : "status"}>
+                    {(current.status === "failed" || current.status === "missing") && <Icon name="alert" size={16} className="mr-1 inline align-[-3px]" />}
+                    {current.status === "ready" && <Icon name="check" size={16} className="mr-1 inline align-[-3px]" />}
+                    {statusText(current)}
+                  </p>
+                  <div className="flex">
+                    {current.status === "failed" && current.hasFile && <button type="button" className="btn btn-ghost btn-sm" onClick={() => retry(current)}><Icon name="refresh" size={18} />再試行</button>}
+                    <button type="button" className="icon-btn" onClick={() => move(selected, -1)} disabled={selected === 0} aria-label={`${selected + 1}番目を前へ`}><Icon name="chevronLeft" size={20} /></button>
+                    <button type="button" className="icon-btn" onClick={() => move(selected, 1)} disabled={selected === items.length - 1} aria-label={`${selected + 1}番目を後ろへ`}><Icon name="chevronRight" size={20} /></button>
+                    <button type="button" className="icon-btn" onClick={() => removeItem(current.localId)} aria-label={current.status === "uploading" ? `${selected + 1}番目のアップロードを取り消す` : `${selected + 1}番目を削除`}><Icon name="trash" size={20} /></button>
                   </div>
                 </div>
+                {current.kind === "IMAGE" && (
+                  <label className="mt-1 block">
+                    <span className="field-label">代替テキスト（画像の説明・任意）</span>
+                    <input className="input" value={current.altText} maxLength={ALT_MAX + 20} onChange={e => patch(current.localId, { altText: e.target.value })} placeholder="例: 花屋の店先のオレンジの花" />
+                  </label>
+                )}
+                {uploading && <p className="mt-2 t-meta" role="status">アップロード中にタブを閉じると、その写真・動画はもう一度選ぶ必要があります。</p>}
               </div>
-              <label className="mt-2 block">
-                <span className="field-label">代替テキスト（画像の説明・任意）</span>
-                <input className="input" value={item.altText} maxLength={ALT_MAX + 20} onChange={e => patch(item.localId, { altText: e.target.value })} placeholder="例: 花屋の店先のオレンジの花" />
-              </label>
-            </li>
-          ))}
-        </ol>
-      )}
+            </>
+          )}
+        </section>
 
-      <div className="mt-4 border-t border-line">
-        <label className="flex items-center justify-between gap-3 border-b border-line py-[14px] t-small">
-          <span>投稿先</span>
-          <select className="select max-w-[60%]" value={destination} onChange={e => { setDestination(e.target.value); setConfirmPublic(false) }}>
-            <option value="">自分のページ</option>
-            {communities.map(c => <option key={c.id} value={c.slug}>{c.name}{c.isPrivate ? "（非公開）" : ""}</option>)}
-          </select>
-        </label>
-        {destination ? (
-          <div className="border-b border-line py-[14px] t-small">
-            <p className="flex justify-between"><span>公開範囲</span><b>{community?.isPrivate ? "集まりのメンバー" : "誰でも（公開の集まり）"}</b></p>
-            {community && !community.isPrivate && isPrivate && (
-              <label className="mt-2 flex items-start gap-2">
-                <input type="checkbox" className="mt-1 h-5 w-5" checked={confirmPublic} onChange={e => setConfirmPublic(e.target.checked)} />
-                <span>あなたは非公開アカウントですが、公開の集まりへの投稿はログインしていない人も含め誰でも読めます。理解して投稿します。</span>
-              </label>
+        {/* Text and settings. */}
+        <section aria-label="本文と公開設定" className="mt-4 px-[var(--gutter)] desktop:mt-0 desktop:px-0">
+          <label htmlFor="caption" className="field-label">本文</label>
+          <textarea
+            id="caption"
+            aria-label="投稿本文"
+            className="textarea min-h-[140px]"
+            placeholder="見つけたもの、思ったこと。"
+            value={caption}
+            onChange={e => setCaption(e.target.value)}
+            aria-invalid={count > CAPTION_MAX || !!fieldErrors.caption}
+            aria-describedby="caption-count"
+          />
+          <p id="caption-count" className={`mt-1 text-right t-meta ${count > CAPTION_MAX ? "!text-error" : ""}`}>{count} / {CAPTION_MAX}</p>
+          {fieldErrors.caption && <p className="field-error">{fieldErrors.caption.join(" ")}</p>}
+
+          <div className="mt-2 divide-y divide-line border-y border-line">
+            <label className="flex items-center justify-between gap-3 py-3">
+              <span className="t-ui">投稿先</span>
+              <select className="select max-w-[60%]" value={destination} onChange={e => { setDestination(e.target.value); setConfirmPublic(false) }}>
+                <option value="">自分のページ</option>
+                {communities.map(c => <option key={c.id} value={c.slug}>{c.name}{c.isPrivate ? "（非公開）" : ""}</option>)}
+              </select>
+            </label>
+            {destination ? (
+              <div className="py-3">
+                <p className="flex items-center justify-between gap-3"><span className="t-ui">公開範囲</span><b className="t-small">{community?.isPrivate ? "集まりのメンバー" : "誰でも（公開の集まり）"}</b></p>
+                {community && !community.isPrivate && isPrivate && (
+                  <label className="mt-2 flex items-start gap-2 t-small">
+                    <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={confirmPublic} onChange={e => setConfirmPublic(e.target.checked)} />
+                    <span>あなたは非公開アカウントですが、公開の集まりへの投稿はログインしていない人も含め誰でも読めます。理解して投稿します。</span>
+                  </label>
+                )}
+              </div>
+            ) : (
+              <fieldset className="py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <legend className="float-left t-ui">公開範囲</legend>
+                  <div className="segmented">
+                    <button type="button" aria-pressed={visibility === "PUBLIC"} disabled={isPrivate} aria-disabled={isPrivate} onClick={() => setVisibility("PUBLIC")}><Icon name="globe" size={16} />公開</button>
+                    <button type="button" aria-pressed={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}><Icon name="lock" size={16} />フォロワー</button>
+                  </div>
+                </div>
+                {isPrivate && <p className="field-hint">非公開アカウントの投稿は、承認したフォロワーだけが読めます（設定で変更できます）。</p>}
+                {expanding && !isPrivate && <p className="field-hint">公開の投稿は、ログインしていない人も読めます。</p>}
+              </fieldset>
             )}
           </div>
-        ) : (
-          <fieldset className="border-b border-line py-[14px] t-small">
-            <legend className="sr-only">公開範囲</legend>
-            <div className="flex items-center justify-between gap-3">
-              <span>公開範囲</span>
-              <div className="tabs w-[60%]">
-                <button type="button" aria-pressed={visibility === "PUBLIC"} disabled={isPrivate} aria-disabled={isPrivate} onClick={() => setVisibility("PUBLIC")}>公開</button>
-                <button type="button" aria-pressed={visibility === "FOLLOWERS"} onClick={() => setVisibility("FOLLOWERS")}>フォロワー</button>
-              </div>
-            </div>
-            {isPrivate && <p className="field-hint">非公開アカウントの投稿は、承認したフォロワーだけが読めます（設定で変更できます）。</p>}
-            {expanding && !isPrivate && <p className="field-hint">公開の投稿は、ログインしていない人も読めます。</p>}
-          </fieldset>
-        )}
-      </div>
 
-      <p className="mt-[13px] text-muted t-tiny">写真は5枚まで（1枚20MB）。動画は1本・60秒・100MBまで。<br />文章だけの日記も書けます。</p>
+          {formError && <div className="mt-3"><Notice tone="error">{formError}</Notice></div>}
 
-      {formError && <div className="mt-3"><Notice tone="error">{formError}</Notice></div>}
-
-      <div className="mt-4 flex gap-2">
-        <button type="button" className="btn btn-secondary flex-1" onClick={() => void submit(false)} disabled={submitting || uploading || !dirty}>下書き保存</button>
-        <button type="button" className="btn btn-accent flex-1" onClick={() => void submit(true)} disabled={submitting || uploading}>{submitting ? "送信中…" : "投稿する"}</button>
+          <div className="mt-4 flex gap-2">
+            <button type="button" className="btn btn-secondary flex-1" onClick={() => void submit(false)} disabled={submitting || uploading || !dirty}>下書き保存</button>
+            <button type="button" className="btn btn-primary flex-1" onClick={() => void submit(true)} disabled={submitting || uploading} aria-busy={submitting}>{submitting ? "送信中…" : "投稿する"}</button>
+          </div>
+        </section>
       </div>
 
       <Dialog open={leaveOpen} onClose={() => setLeaveOpen(false)} title="入力中の内容があります" variant="center">
         <p className="mb-4 t-body">下書きとして残すか、破棄するかを選んでください。</p>
         <div className="space-y-2">
-          <button type="button" className="btn btn-primary btn-block" onClick={() => { setLeaveOpen(false); router.back() }}>この端末に下書きを残して戻る</button>
+          <button type="button" className="btn btn-ink btn-block" onClick={() => { setLeaveOpen(false); router.back() }}>この端末に下書きを残して戻る</button>
           <button type="button" className="btn btn-secondary btn-block" onClick={async () => { items.forEach(i => i.abort?.()); await deleteDraft(userId); setItems([]); setCaption(""); setLeaveOpen(false); router.back() }}>破棄して戻る</button>
           <button type="button" className="btn btn-ghost btn-block" onClick={() => setLeaveOpen(false)}>編集を続ける</button>
         </div>

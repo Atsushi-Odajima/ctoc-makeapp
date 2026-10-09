@@ -57,7 +57,7 @@ export function PostMenu({ post, onDeleted, onEdit }: { post: PostDTO; onDeleted
     }
   }
 
-  const item = "flex min-h-[48px] w-full items-center gap-3 rounded-[11px] px-3 text-left hover:bg-canvas"
+  const item = "flex min-h-[48px] w-full items-center gap-3 rounded-[8px] px-3 text-left hover:bg-subtle"
   return (
     <>
       <button type="button" className="icon-btn" aria-label="投稿メニュー" aria-haspopup="dialog" onClick={() => setOpen(true)}>

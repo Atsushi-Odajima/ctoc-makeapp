@@ -41,11 +41,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja">
       <head>
-        {/* Fonts are self-hosted (OFL, see src/app/fonts.css); no external font CDN. */}
-        <link rel="preload" href="/fonts/BIZUDPGothic-Regular-base.woff2" as="font" type="font/woff2" crossOrigin="" />
+        {/* Fonts are self-hosted (OFL, see src/app/fonts.css); no external font CDN. Preload only the
+            kana/punctuation slice that every Japanese page needs (regular and bold). */}
+        <link rel="preload" href="/fonts/zkgn-400-117.woff2" as="font" type="font/woff2" crossOrigin="" />
+        <link rel="preload" href="/fonts/zkgn-700-117.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers><div id="app-root">{children}</div></Providers>
       </body>
     </html>
   )

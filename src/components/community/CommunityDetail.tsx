@@ -67,44 +67,47 @@ export function CommunityDetail({ slug }: { slug: string }) {
     }
   }
 
-  if (error) return <div className="mx-auto max-w-[960px] gutter pt-4"><ErrorState message={error.status === 404 ? "この集まりは見つかりません。" : error.message} onRetry={error.status === 404 ? undefined : () => void load()} /><div className="mt-4 text-center"><Link href="/communities" className="btn btn-secondary">集まり一覧へ</Link></div></div>
-  if (!c) return <div className="mx-auto max-w-[960px] gutter pt-4"><Skeletons count={1} /></div>
+  if (error) return <div className="feed-column gutter pt-4"><ErrorState message={error.status === 404 ? "この集まりは見つかりません。" : error.message} onRetry={error.status === 404 ? undefined : () => void load()} /><div className="text-center"><Link href="/communities" className="btn btn-secondary">集まり一覧へ</Link></div></div>
+  if (!c) return <div className="feed-column pt-4"><Skeletons count={1} /></div>
 
   const m = c.membership
   return (
-    <div className="mx-auto max-w-[960px] gutter">
-      <div className="flex items-center gap-2 py-2">
+    <div className="feed-column desktop:pt-4">
+      <div className="px-1 py-1 desktop:hidden">
         <button type="button" className="icon-btn" onClick={() => router.back()} aria-label="戻る"><Icon name="back" /></button>
       </div>
-      <div className="flex items-center gap-3">
-        <CommunitySymbol seed={c.slug} size={56} />
+      <div className="px-[var(--gutter)] sm:px-0">
+      <div className="flex items-center gap-4">
+        <CommunitySymbol seed={c.slug} size={72} />
         <div className="min-w-0">
-          <h1 className="t-h2">{c.name}</h1>
-          <p className="flex items-center gap-1 text-muted t-small">{c.category}{c.isPrivate ? <> · <Icon name="lock" size={12} />非公開（承認制）</> : " · 公開"} · {c.memberCount}人</p>
+          <h1 className="t-h1">{c.name}</h1>
+          <p className="flex flex-wrap items-center gap-x-1 t-meta">{c.category}{c.isPrivate ? <span className="inline-flex items-center gap-0.5">· <Icon name="lock" size={13} />非公開（承認制）</span> : <span>· 公開</span>}<span>· <span className="t-label text-[15px] font-semibold text-ink">{c.memberCount}</span>人</span></p>
         </div>
       </div>
-      <p className="mt-3 whitespace-pre-wrap t-body desktop:max-w-[720px]">{c.description}</p>
+      <p className="mt-3 whitespace-pre-wrap t-small">{c.description}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {!m && <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void act("POST")}>{c.isPrivate ? "参加を申請する" : "参加する"}</button>}
         {m?.status === "PENDING" && <><span className="t-small">参加申請中です。管理者の承認を待っています。</span><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void act("DELETE")}>申請を取り消す</button></>}
         {m?.status === "ACTIVE" && (
           <>
-            <Link href={`/create?community=${c.slug}`} className="btn btn-accent"><Icon name="plus" size={18} />この集まりに投稿</Link>
+            <Link href={`/create?community=${c.slug}`} className="btn btn-primary"><Icon name="plus" size={18} />この集まりに投稿</Link>
             {m.role !== "OWNER" ? <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void act("DELETE")}>退出する</button> : <span className="t-small">あなたが管理しています</span>}
           </>
         )}
-        {viewer && <button type="button" className="btn btn-ghost" onClick={() => void toggleMute()} aria-pressed={c.muted}>{c.muted ? "ミュート中（解除）" : "ホームに表示しない"}</button>}
+        {viewer && <button type="button" className="btn btn-ghost" onClick={() => void toggleMute()} aria-pressed={c.muted}><Icon name={c.muted ? "mute" : "eye"} size={18} />{c.muted ? "ミュート中（解除）" : "ホームに表示しない"}</button>}
       </div>
       {m?.status === "ACTIVE" && !c.isPrivate && (
         <label className="mt-2 flex min-h-[44px] items-center gap-2 t-small">
-          <input type="checkbox" className="h-5 w-5" checked={m.showOnProfile} onChange={e => void setShowOnProfile(e.target.checked)} />
+          <input type="checkbox" className="h-5 w-5 shrink-0" checked={m.showOnProfile} onChange={e => void setShowOnProfile(e.target.checked)} />
           この集まりをプロフィールに表示する
         </label>
       )}
 
+      </div>
       <div className="mt-5">
         <Tabs<Tab>
+          className="px-[var(--gutter)] sm:px-0"
           label="集まりの表示切り替え"
           value={tab}
           onChange={setTab}
@@ -112,12 +115,9 @@ export function CommunityDetail({ slug }: { slug: string }) {
         />
       </div>
 
-      <div className="mx-auto mt-3 max-w-[640px]">
+      <div>
         {!c.canViewContent ? (
-          <div className="mt-6 flex flex-col items-center gap-2 text-center">
-            <Icon name="lock" size={28} />
-            <p className="t-body">非公開の集まりです。参加が承認されると、投稿・写真・メンバーが見られます。</p>
-          </div>
+          <EmptyState icon="lock" title="非公開の集まりです" body="参加が承認されると、投稿・写真・メンバーが見られます。" />
         ) : tab === "posts" ? (
           <CommunityPosts slug={c.slug} canPost={m?.status === "ACTIVE"} />
         ) : tab === "members" ? (
@@ -134,11 +134,11 @@ function CommunityPosts({ slug, canPost }: { slug: string; canPost: boolean }) {
   const { items, setItems, loading, error, done, loadMore, reload } = useInfinite<PostDTO>(`/api/communities/${slug}/posts`)
   if (error && !items.length) return <ErrorState message={error.message} onRetry={() => void reload()} />
   if (loading && !items.length) return <Skeletons />
-  if (!items.length) return <EmptyState title="最初のひとことを書いてみませんか" action={canPost ? { href: `/create?community=${slug}`, label: "書いてみる" } : undefined} />
+  if (!items.length) return <EmptyState icon="image" title="まだ投稿がありません" body="最初のひとことを書いてみませんか。" action={canPost ? { href: `/create?community=${slug}`, label: "書いてみる" } : undefined} />
   return (
     <div>
-      {items.map(p => <div key={p.id} className="mb-[26px]"><PostCard post={p} onDeleted={id => setItems(prev => prev.filter(x => x.id !== id))} /></div>)}
-      {!done && <div className="text-center"><button type="button" className="btn btn-secondary" disabled={loading} onClick={() => void loadMore()}>{loading ? "読み込み中…" : "もっと見る"}</button></div>}
+      {items.map(p => <div key={p.id} className="mb-2"><PostCard post={p} onDeleted={id => setItems(prev => prev.filter(x => x.id !== id))} /></div>)}
+      {!done && <div className="py-6 text-center"><button type="button" className="btn btn-secondary" disabled={loading} aria-busy={loading} onClick={() => void loadMore()}>{loading ? "読み込み中…" : "もっと見る"}</button></div>}
     </div>
   )
 }
@@ -149,16 +149,16 @@ function Members({ slug }: { slug: string }) {
   useEffect(() => {
     api<Array<{ role: string; user: UserSummary }>>(`/api/communities/${slug}/members`).then(r => setMembers(r.data)).catch(e => setError(e instanceof ApiClientError ? e.message : "読み込めませんでした"))
   }, [slug])
-  if (error) return <Notice tone="error">{error}</Notice>
-  if (!members) return <Skeletons count={1} />
+  if (error) return <div className="px-[var(--gutter)] pt-3 sm:px-0"><Notice tone="error">{error}</Notice></div>
+  if (!members) return <p className="px-[var(--gutter)] py-6 t-meta sm:px-0" aria-busy="true">読み込み中…</p>
   return (
-    <ul>
+    <ul className="divide-y divide-line px-[var(--gutter)] sm:px-0">
       {members.map(({ role, user }) => (
-        <li key={user.id} className="border-b border-line">
-          <Link href={`/u/${user.username}`} className="flex min-h-[56px] items-center gap-3 py-2">
-            <Avatar user={user} size={36} />
-            <span className="flex-1 truncate">{user.name}</span>
-            {role !== "MEMBER" && <span className="text-muted t-tiny">{role === "OWNER" ? "管理者" : "モデレーター"}</span>}
+        <li key={user.id}>
+          <Link href={`/u/${user.username}`} className="flex min-h-[60px] items-center gap-3 py-2 hover:bg-ink/[0.03]">
+            <Avatar user={user} size={44} />
+            <span className="min-w-0 flex-1 truncate t-author">{user.name}</span>
+            {role !== "MEMBER" && <span className="t-meta">{role === "OWNER" ? "管理者" : "モデレーター"}</span>}
           </Link>
         </li>
       ))}
@@ -180,16 +180,18 @@ function Requests({ slug, onChanged }: { slug: string; onChanged: () => Promise<
       toast.error(e instanceof ApiClientError ? e.message : "操作できませんでした")
     }
   }
-  if (!items) return <Skeletons count={1} />
-  if (!items.length) return <p className="py-6 text-center text-muted t-small">参加申請はありません。</p>
+  if (!items) return <p className="px-[var(--gutter)] py-6 t-meta sm:px-0" aria-busy="true">読み込み中…</p>
+  if (!items.length) return <EmptyState icon="community" title="参加申請はありません" />
   return (
-    <ul>
+    <ul className="divide-y divide-line px-[var(--gutter)] sm:px-0">
       {items.map(({ user }) => (
-        <li key={user.id} className="flex min-h-[56px] items-center gap-3 border-b border-line py-2">
-          <Avatar user={user} size={36} />
-          <Link href={`/u/${user.username}`} className="flex-1 truncate">{user.name}</Link>
-          <button type="button" className="btn btn-primary" onClick={() => void answer(user.id, true)}>承認</button>
-          <button type="button" className="btn btn-secondary" onClick={() => void answer(user.id, false)}>見送る</button>
+        <li key={user.id} className="flex min-h-[60px] flex-wrap items-center gap-x-3 gap-y-1 py-2">
+          <Avatar user={user} size={44} />
+          <Link href={`/u/${user.username}`} className="min-w-0 flex-1 truncate t-author">{user.name}</Link>
+          <span className="flex gap-2">
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => void answer(user.id, true)}>承認</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void answer(user.id, false)}>見送る</button>
+          </span>
         </li>
       ))}
     </ul>

@@ -17,7 +17,7 @@ export function MediaImage({ mediaId, src, alt, className, style, width, height,
   const { url, failed, refresh } = useMediaRefresh({ id: mediaId, url: src })
   if (failed || !url) {
     return (
-      <div role="img" aria-label={alt ? `${alt}（表示できません）` : "画像を表示できません"} className={`grid place-items-center bg-tabbg text-muted t-small ${className ?? ""}`} style={style}>
+      <div role="img" aria-label={alt ? `${alt}（表示できません）` : "画像を表示できません"} className={`grid place-items-center bg-subtle text-muted t-small ${className ?? ""}`} style={style}>
         表示できません
       </div>
     )

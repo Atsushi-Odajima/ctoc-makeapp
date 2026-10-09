@@ -51,7 +51,7 @@ export function ModerationQueue() {
 
   const t = selected?.report.targetType
   return (
-    <div className="mx-auto max-w-[960px] gutter">
+    <div className="wide-column gutter desktop:px-6 desktop:pt-6">
       <h1 className="t-h1 mt-4">通報の確認</h1>
       <p className="mb-3 text-muted t-small">通報された内容だけを表示します。会話の全体や他の投稿は表示しません。すべての判断は理由とともに記録され、変更・削除できません。</p>
       <Tabs label="状態" value={state} onChange={v => { setReports(null); setSelected(null); setState(v) }} items={[{ value: "OPEN", label: "未対応" }, { value: "REVIEWING", label: "確認中" }, { value: "RESOLVED", label: "対応済み" }]} />
@@ -71,10 +71,10 @@ export function ModerationQueue() {
           )}
         </div>
         {selected && (
-          <section className="space-y-3 rounded-[18px] bg-surface p-5" aria-label="通報の詳細">
+          <section className="space-y-3 rounded-[8px] bg-surface p-5" aria-label="通報の詳細">
             <p className="t-small">理由: <b>{selected.report.reasonCode}</b>{selected.report.detail && <> — {selected.report.detail}</>}</p>
             {selected.target ? (
-              <div className="rounded-[11px] border border-line p-3">
+              <div className="rounded-[8px] border border-line p-3">
                 <p className="text-muted t-tiny">{TYPE_LABEL[selected.report.targetType]} · @{selected.target.author.username} · {formatDateTime(selected.target.createdAt)}{selected.target.hidden ? " · 非表示中" : ""}{selected.target.status ? ` · ${selected.target.status}` : ""}</p>
                 <p className="mt-1 whitespace-pre-wrap t-body">{selected.target.text ?? "（本文なし）"}</p>
                 {selected.target.mediaCount ? <p className="text-muted t-tiny">添付 {selected.target.mediaCount}件（運営画面では表示しません）</p> : null}

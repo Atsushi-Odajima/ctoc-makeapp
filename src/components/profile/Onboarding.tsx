@@ -70,8 +70,8 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
   const shown = (list ?? []).filter(o => !filter || o.label.includes(filter))
 
   return (
-    <div className="mx-auto max-w-[640px] gutter">
-      <p className="t-overline mt-4">{step < 3 ? `STEP ${step + 1} / 3` : "PREVIEW"}</p>
+    <div className="feed-column gutter desktop:px-0 desktop:pt-6">
+      <p className="mt-3 t-meta font-medium">{step < 3 ? <>ステップ <span className="t-label text-[15px] font-semibold text-ink">{step + 1} / 3</span></> : "確認"}</p>
       <h1 className="t-h1">{step < 3 ? STEPS[step] : "この内容で設定しますか？"}</h1>
       <p className="mt-1 text-muted t-small">
         {step === 0 && "ちょっと自慢できることを1つ選んでください。"}
@@ -79,8 +79,8 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
         {step === 2 && `好きなことを3つ選んでください（${sel.hobbies.length} / 3）。`}
         {step === 3 && "3つの項目はプロフィールの公開情報です。非公開アカウントでも、表示名・自己紹介とあわせて誰でも見られます（投稿は限定されます）。"}
       </p>
-      <ol className="mt-3 flex gap-1" aria-label="進み具合">
-        {[0, 1, 2].map(i => <li key={i} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-ink" : "bg-line"}`} aria-current={i === step ? "step" : undefined}><span className="sr-only">{STEPS[i]}{i < step ? "（完了）" : ""}</span></li>)}
+      <ol className="mt-4 flex gap-1" aria-label="進み具合">
+        {[0, 1, 2].map(i => <li key={i} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${i <= step ? "bg-ink" : "bg-line"}`} aria-current={i === step ? "step" : undefined}><span className="sr-only">{STEPS[i]}{i < step ? "（完了）" : ""}</span></li>)}
       </ol>
 
       {error && <div className="mt-3"><Notice tone="error">{error}</Notice></div>}
@@ -89,9 +89,10 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
         <fieldset className="mt-4">
           <legend className="sr-only">{STEPS[step]}を選ぶ</legend>
           {step === 2 && (
-            <label className="mb-3 block">
+            <label className="relative mb-3 block">
               <span className="sr-only">趣味を絞り込む</span>
-              <input className="input" value={filter} onChange={e => setFilter(e.target.value)} placeholder="趣味を絞り込む（例: 写真）" />
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"><Icon name="search" size={20} /></span>
+              <input className="input pl-10" value={filter} onChange={e => setFilter(e.target.value)} placeholder="趣味を絞り込む（例: 写真）" />
             </label>
           )}
           {!options ? <p aria-busy="true" className="text-muted">読み込み中…</p> : (
@@ -100,7 +101,7 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
                 const selected = step === 0 ? sel.strength === o.id : step === 1 ? sel.weakness === o.id : sel.hobbies.includes(o.id)
                 const disabled = step === 2 && !selected && sel.hobbies.length >= 3
                 return (
-                  <label key={o.id} className={`interactive inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-[11px] border px-3 text-[13px] ${selected ? "border-ink bg-ink font-bold text-white" : "border-control bg-surface"} ${disabled ? "opacity-45" : ""}`}>
+                  <label key={o.id} className={`chip min-h-[44px] cursor-pointer has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink ${selected ? "!border-ink !bg-ink font-bold !text-white" : "hover:border-ink"} ${disabled ? "cursor-not-allowed opacity-45" : ""}`}>
                     <input
                       type={step === 2 ? "checkbox" : "radio"}
                       name={`step-${step}`}
@@ -123,7 +124,7 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
           {step === 2 && sel.hobbies.length >= 3 && <p className="field-hint">3つ選びました。変えるときは、選んだものをもう一度押して外してください。</p>}
         </fieldset>
       ) : (
-        <div className="mt-4">
+        <div className="-mx-[var(--gutter)] mt-4 border-y border-line bg-surface pb-4 sm:mx-0 sm:rounded-[8px] sm:border">
           <ProfileHero user={{
             id: userId, name: viewer?.name ?? "", username: viewer?.username ?? "", avatar: viewer?.avatar ?? null, bio: null, website: null, isPrivate: false,
             strength: sel.strength ? lookup.get(sel.strength) ?? null : null,
@@ -136,11 +137,11 @@ export function Onboarding({ userId, editing, next, initial }: { userId: string;
       <div className="mt-6 flex gap-2">
         {step > 0 && <button type="button" className="btn btn-secondary flex-1" onClick={() => setStep(s => s - 1)}>戻る</button>}
         {step < 3 ? (
-          <button type="button" className="btn btn-primary flex-1" disabled={!canNext} aria-disabled={!canNext} onClick={() => setStep(s => s + 1)}>
+          <button type="button" className="btn btn-ink flex-1" disabled={!canNext} aria-disabled={!canNext} onClick={() => setStep(s => s + 1)}>
             {step === 2 ? "確認へ" : "次へ"}
           </button>
         ) : (
-          <button type="button" className="btn btn-accent flex-1" disabled={saving} onClick={() => void confirm()}>{saving ? "保存中…" : editing ? "この内容で更新" : "この内容ではじめる"}</button>
+          <button type="button" className="btn btn-primary flex-1" disabled={saving} aria-busy={saving} onClick={() => void confirm()}>{saving ? "保存中…" : editing ? "この内容で更新" : "この内容ではじめる"}</button>
         )}
       </div>
       {!canNext && step < 3 && <p className="field-hint text-center">{step === 2 ? "3つ選ぶと次へ進めます" : "1つ選ぶと次へ進めます"}</p>}

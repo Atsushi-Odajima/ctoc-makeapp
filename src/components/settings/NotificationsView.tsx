@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { Avatar } from "@/components/ui/Avatar"
+import { Icon } from "@/components/ui/Icon"
 import { Tabs } from "@/components/ui/Tabs"
 import { EmptyState, ErrorState, Skeletons } from "@/components/ui/States"
 import { useInfinite } from "@/components/ui/useInfinite"
@@ -65,33 +66,33 @@ export function NotificationsView() {
   }
 
   return (
-    <div className="mx-auto max-w-[640px] gutter">
-      <div className="mb-4 mt-[17px] flex items-end justify-between">
-        <div><p className="t-overline mb-1.5">NOTICE</p><h1 className="t-h1">お知らせ</h1></div>
+    <div className="feed-column desktop:pt-6">
+      <div className="flex items-center justify-between px-[var(--gutter)] pb-2 pt-2 sm:px-0">
+        <h1 className="t-h1">お知らせ</h1>
         <button type="button" className="link-btn" onClick={() => void markAll()}>すべて既読にする</button>
       </div>
       <FollowRequests />
-      <Tabs<"all" | "unread"> label="お知らせの切り替え" value={filter} onChange={setFilter} items={[{ value: "all", label: "すべて" }, { value: "unread", label: "未読" }]} />
-      {error && !items.length ? <div className="mt-4"><ErrorState message={error.message} onRetry={() => void reload()} /></div>
-        : loading && !items.length ? <div className="mt-4"><Skeletons count={2} /></div>
-          : !items.length ? <div className="mt-4"><EmptyState title={filter === "unread" ? "未読のお知らせはありません。" : "まだお知らせはありません。"} /></div> : (
-            <ul className="mt-2">
+      <Tabs<"all" | "unread"> className="px-[var(--gutter)] sm:px-0" label="お知らせの切り替え" value={filter} onChange={setFilter} items={[{ value: "all", label: "すべて" }, { value: "unread", label: "未読" }]} />
+      {error && !items.length ? <ErrorState message={error.message} onRetry={() => void reload()} />
+        : loading && !items.length ? <Skeletons count={1} />
+          : !items.length ? <EmptyState icon="bell" title={filter === "unread" ? "未読のお知らせはありません" : "まだお知らせはありません"} body={filter === "unread" ? undefined : "いいねやコメント、フォローがあるとここに届きます。"} /> : (
+            <ul className="divide-y divide-line px-[var(--gutter)] sm:px-0">
               {items.map(n => (
                 <li key={n.id}>
-                  <Link href={hrefFor(n)} onClick={() => { if (!n.read) void markOne(n.id) }} className="flex items-center gap-3 border-b border-line py-3">
-                    {n.actor ? <Avatar user={n.actor} /> : <span className="h-[39px] w-[39px] rounded-[12px] bg-tabbg" />}
+                  <Link href={hrefFor(n)} onClick={() => { if (!n.read) void markOne(n.id) }} className="flex items-center gap-3 py-3 hover:bg-ink/[0.03]">
+                    {n.actor ? <Avatar user={n.actor} size={44} /> : <span className="grid h-11 w-11 place-items-center rounded-full bg-subtle"><Icon name="bell" size={20} /></span>}
                     <span className="min-w-0 flex-1">
                       <span className="block t-small"><b>{n.actor?.name ?? "だれか"}</b>{TEXT[n.type] ?? "さんからのお知らせ"}</span>
-                      {n.content && <span className="block truncate text-muted t-tiny">{n.content}</span>}
-                      <span className="block text-muted t-tiny">{relativeTime(n.createdAt)}{!n.read && <span className="ml-2 font-bold text-ink">● 未読</span>}</span>
+                      {n.content && <span className="block truncate text-muted t-small">{n.content}</span>}
+                      <span className="flex items-center gap-2 t-meta">{relativeTime(n.createdAt)}{!n.read && <span className="inline-flex items-center gap-1 font-bold text-accent"><span aria-hidden className="h-2 w-2 rounded-full bg-accent" />未読</span>}</span>
                     </span>
-                    {n.post?.thumbnail?.deliveryUrl && <MediaImage mediaId={n.post.thumbnail.id} src={n.post.thumbnail.deliveryUrl} alt="" className="h-11 w-11 rounded-[9px] object-cover" />}
+                    {n.post?.thumbnail?.deliveryUrl && <MediaImage mediaId={n.post.thumbnail.id} src={n.post.thumbnail.deliveryUrl} alt="" className="h-11 w-11 shrink-0 rounded-[2px] object-cover" />}
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-      {items.length > 0 && !done && <div className="mt-4 text-center"><button type="button" className="btn btn-secondary" disabled={loading} onClick={() => void loadMore()}>もっと見る</button></div>}
+      {items.length > 0 && !done && <div className="mt-6 text-center"><button type="button" className="btn btn-secondary" disabled={loading} aria-busy={loading} onClick={() => void loadMore()}>{loading ? "読み込み中…" : "もっと見る"}</button></div>}
     </div>
   )
 }
@@ -111,15 +112,17 @@ function FollowRequests() {
   }
   if (!items.length) return null
   return (
-    <section id="requests" className="mb-4 rounded-[12px] bg-surface p-3" aria-label="フォローリクエスト">
-      <h2 className="t-section">フォローリクエスト</h2>
-      <ul>
+    <section id="requests" className="mb-3 border-y border-line px-[var(--gutter)] py-2 sm:px-0" aria-labelledby="requests-heading">
+      <h2 id="requests-heading" className="t-ui font-bold">フォローリクエスト <span className="t-label font-semibold text-muted">{items.length}</span></h2>
+      <ul className="divide-y divide-line">
         {items.map(({ user }) => (
-          <li key={user.id} className="flex min-h-[56px] items-center gap-3 border-b border-line py-2 last:border-b-0">
-            <Avatar user={user} size={36} />
-            <Link href={`/u/${user.username}`} className="min-w-0 flex-1 truncate">{user.name}</Link>
-            <button type="button" className="btn btn-primary" onClick={() => void answer(user.id, true)}>承認</button>
-            <button type="button" className="btn btn-secondary" onClick={() => void answer(user.id, false)}>見送る</button>
+          <li key={user.id} className="flex min-h-[60px] flex-wrap items-center gap-x-3 gap-y-1 py-2">
+            <Avatar user={user} size={44} />
+            <Link href={`/u/${user.username}`} className="min-w-0 flex-1 truncate t-author hover:underline">{user.name}</Link>
+            <span className="flex gap-2">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => void answer(user.id, true)}>承認</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void answer(user.id, false)}>見送る</button>
+            </span>
           </li>
         ))}
       </ul>

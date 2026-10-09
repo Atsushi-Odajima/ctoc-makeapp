@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F7F4F5">
+<meta name="theme-color" content="#F7F6F2">
 <title>オフライン | DayNet</title>
 <style>
-  body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#F7F4F5;color:#302B38;font:14px/24.5px 'BIZ UDPGothic',sans-serif;padding:24px 18px}
-  main{max-width:420px;text-align:center}
-  h1{font-size:20px;line-height:30px;margin:20px 0 8px}
-  p{color:#665F6E;margin:0 0 20px}
-  button{min-height:46px;padding:0 18px;border-radius:11px;border:0;background:#302B38;color:#fff;font:700 13px/20px 'BIZ UDPGothic',sans-serif}
-  button:focus-visible{outline:3px solid #79528C;outline-offset:3px}
+  @font-face{font-family:'Zen Kaku Gothic New';src:url('/fonts/zkgn-400-117.woff2') format('woff2');font-weight:400;font-display:swap}
+  body{margin:0;min-height:100dvh;display:grid;place-items:center;background:#F7F6F2;color:#20211F;font:16px/1.7 'Zen Kaku Gothic New',system-ui,-apple-system,'Hiragino Sans','Yu Gothic UI',sans-serif;padding:24px 16px}
+  main{max-width:400px;text-align:center}
+  h1{font-size:20px;line-height:1.4;margin:16px 0 8px}
+  p{color:#686A63;margin:0 0 24px}
+  button{min-height:44px;padding:0 16px;border-radius:8px;border:0;background:#B84432;color:#fff;font:700 15px/1.3 inherit;font-family:inherit}
+  button:focus-visible{outline:2px solid #20211F;outline-offset:2px}
 </style>
 </head>
 <body>
 <main>
-  <img src="/brand/logo_mark.svg" width="56" height="52" alt="">
+  <svg viewBox="0 0 108 100" width="48" height="44" aria-hidden="true"><path d="M18 20L79 38L35 88Z" fill="none" stroke="#20211F" stroke-width="8" stroke-linejoin="round"/><path d="M58 10L90 75L20 62Z" fill="none" stroke="#B84432" stroke-width="8" stroke-linejoin="round"/></svg>
   <h1>接続が切れています</h1>
   <p>オフラインのため表示できません。下書きはこの端末に保存されています。接続が戻ったら再試行してください。</p>
   <button type="button" onclick="location.reload()">再試行</button>

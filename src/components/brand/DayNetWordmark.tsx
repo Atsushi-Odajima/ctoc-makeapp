@@ -1,17 +1,20 @@
-/* eslint-disable @next/next/no-img-element */
-// Horizontal logo = the supplied outlined SVG (text already converted to paths), used as-is so
-// it renders identically regardless of installed fonts. Never re-typeset the logotype.
+import { DayNetMark } from "./DayNetMark"
+
+// Header lockup: the DayNet mark + the brand name set in Barlow Condensed SemiBold. The name is
+// tracked slightly open and sized against the mark (cap height ≈ mark height × 0.7) so it reads as
+// a logotype rather than body text. Height is driven by `size` (mark height in px).
 interface Props {
-  width?: number
+  size?: number
   reverse?: boolean
-  markOnly?: boolean
   decorative?: boolean
   className?: string
 }
 
-export function DayNetWordmark({ width = 165, reverse = false, decorative = false, className }: Props) {
-  const src = reverse ? "/brand/logo_horizontal_reverse.svg" : "/brand/logo_horizontal.svg"
-  // viewBox 4620 x 1170
-  const height = Math.round((width * 1170) / 4620)
-  return <img src={src} width={width} height={height} alt={decorative ? "" : "DayNet"} className={className} draggable={false} />
+export function DayNetWordmark({ size = 22, reverse = false, decorative = false, className = "" }: Props) {
+  return (
+    <span className={`inline-flex items-center gap-[0.32em] ${reverse ? "text-canvas" : "text-ink"} ${className}`} style={{ fontSize: size * 1.18 }} role={decorative ? undefined : "img"} aria-label={decorative ? undefined : "DayNet"}>
+      <DayNetMark size={size} variant={reverse ? "reverse" : "default"} />
+      <span aria-hidden className="font-[family-name:var(--font-label)] font-semibold leading-none tracking-[0.035em]">DayNet</span>
+    </span>
+  )
 }

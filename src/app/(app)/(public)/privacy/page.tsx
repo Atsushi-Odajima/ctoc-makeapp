@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "プライバシーポリシー" }
 // DRAFT reflecting the implemented behaviour (see HANDOFF.txt). Requires operator/legal review.
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto max-w-[640px] gutter space-y-4 pt-4 t-long">
+    <article className="feed-column gutter desktop:px-0 desktop:pt-6 space-y-4 pt-4 t-long">
       <h1 className="t-h1">プライバシーポリシー（草案）</h1>
       <p className="text-muted t-small">この文書は実装内容に合わせた草案です。公開前に運営者が確認して確定します。</p>
       <h2 className="t-h2">集める情報</h2>
